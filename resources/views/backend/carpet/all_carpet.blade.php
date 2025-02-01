@@ -57,7 +57,7 @@
                                             <td>{{ $item->delivered }}</td>
                                             <td>
 
-                                        <a href="{{ route('edit.carpet',$item->id) }}" class="btn btn-secondary rounded-pill waves-effect">History</a>
+                                                <a href="{{ route('history.client',$item->id) }}" class="btn btn-info">History</a>
                                         <a href="{{ route('edit.carpet',$item->id) }}" class="btn btn-secondary rounded-pill waves-effect">Edit</a>
                                         <a href="{{ route('delete.carpet',$item->id) }}" class="btn btn-danger rounded-pill waves-effect waves-light" id="delete">Delete</a>
 

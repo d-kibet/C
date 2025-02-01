@@ -9,7 +9,7 @@
         <meta content="Premium Multipurpose Admin & Dashboard Template" name="description" />
         <meta content="Themesdesign" name="author" />
         <!-- App favicon -->
-        <link rel="shortcut icon" href="{{ asset('backend/assets/images/favicon.ico') }}">
+        <link rel="shortcut icon" href="{{ asset('backend/assets/images/Raha_logo.ico') }}">
 
         <!-- jquery.vectormap css -->
         <link href="{{ asset('backend/assets/libs/admin-resources/jquery.vectormap/jquery-jvectormap-1.2.2.css') }}" rel="stylesheet" type="text/css" />
@@ -40,7 +40,7 @@
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.1/css/all.min.css" integrity="sha512-MV7K8+y+gLIBoVD59lQIYicR65iaqukzvf/nwasF0nqhPay5w/9lJmVM2hMDcnK1OnMGCdVK+iQrJ7lzPJQd1w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
     </head>
 
-    <body data-topbar="dark">
+    <body data-topbar="dark" style="padding-top: 30px;">
 
     <!-- <body data-layout="horizontal" data-topbar="dark"> -->
 
@@ -86,7 +86,7 @@
         <script src="{{ asset('backend/assets/libs/simplebar/simplebar.min.js') }}"></script>
         <script src="{{ asset('backend/assets/libs/node-waves/waves.min.js') }}"></script>
 
-       
+
         <!-- apexcharts -->
         <script src="{{ asset('backend/assets/libs/apexcharts/apexcharts.min.js') }}"></script>
 

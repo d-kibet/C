@@ -6,6 +6,9 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Backend\CarpetController;
 use App\Http\Controllers\Backend\LaundryController;
 use App\Http\Controllers\Backend\MpesaController;
+use App\Http\Controllers\Home\ContactController;
+use App\Http\Controllers\Home\AboutController;
+use App\Http\Controllers\Home\ServiceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,7 +22,7 @@ use App\Http\Controllers\Backend\MpesaController;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return view('frontend.index');
 });
 
 Route::get('/dashboard', function () {
@@ -48,6 +51,7 @@ Route::controller(CarpetController::class)->group(function(){
     Route::get('/all/carpet','AllCarpet')->name('all.carpet');
     Route::get('/add/carpet','AddCarpet')->name('add.carpet');
     Route::post('/store/carpet','StoreCarpet')->name('carpet.store');
+    Route::get('/history/carpet/{phone}','HistoryCarpet')->name('history.client');
     Route::get('/edit/carpet/{id}','EditCarpet')->name('edit.carpet');
     Route::post('/update/carpet','UpdateCarpet')->name('carpet.update');
     Route::post('/delete/carpet','DeleteCarpet')->name('delete.carpet');
@@ -78,6 +82,37 @@ Route::controller(MpesaController::class)->group(function(){
     Route::post('/delete/mpesa','DeleteMpesa')->name('delete.mpesa');
 
     });
+
+    // Contact All Route
+Route::controller(ContactController::class)->group(function () {
+    Route::get('/contact', 'Contact')->name('contact.me');
+    Route::post('/store/message', 'StoreMessage')->name('store.message');
+
+});
+
+Route::controller(AboutController::class)->group(function () {
+    Route::get('/about/page', 'AboutPage')->name('about.page');
+    Route::post('/update/about', 'UpdateAbout')->name('update.about');
+    Route::get('/about', 'HomeAbout')->name('home.about');
+
+//     Route::get('/about/multi/image', 'AboutMultiImage')->name('about.multi.image');
+//     Route::post('/store/multi/image', 'StoreMultiImage')->name('store.multi.image');
+
+//     Route::get('/all/multi/image', 'AllMultiImage')->name('all.multi.image');
+//     Route::get('/edit/multi/image/{id}', 'EditMultiImage')->name('edit.multi.image');
+
+//     Route::post('/update/multi/image', 'UpdateMultiImage')->name('update.multi.image');
+//    Route::get('/delete/multi/image/{id}', 'DeleteMultiImage')->name('delete.multi.image');
+
+});
+
+ // Service Page All Route
+ Route::controller(ServiceController::class)->group(function () {
+    Route::get('/service-details', 'ServicePage')->name('service.page');
+    Route::post('/store/message', 'StoreMessage')->name('store.message');
+
+});
+
 
 
 

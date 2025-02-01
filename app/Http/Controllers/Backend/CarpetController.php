@@ -81,7 +81,7 @@ class CarpetController extends Controller
     } // End Method
 
     public function DeleteCarpet($id){
-        
+
         Carpet::findOrFail($id)->delete();
 
         $notification = array(
@@ -90,5 +90,21 @@ class CarpetController extends Controller
         );
 
         return redirect()->back()->with($notification);
+    }
+
+    public function HistoryCarpet(Request $request, $phone){
+        $client = Carpet::where('phone', $phone);
+
+        // Apply date filters if provided
+     if ($request->start_date && $request->end_date) {
+        $client->whereBetween('created_at', [
+            Carbon::parse($request->start_date)->startOfDay(),
+            Carbon::parse($request->end_date)->endOfDay(),
+        ]);
+    }
+
+     $client = $client->paginate(10);
+
+        return view('backend.carpet.history_carpet',compact('client','phone'));
     }
 }
