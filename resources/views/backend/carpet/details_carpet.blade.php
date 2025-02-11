@@ -1,3 +1,4 @@
+
 @extends('admin_master')
 @section('admin')
 
@@ -15,11 +16,11 @@
                     <div class="page-title-right">
                         <ol class="breadcrumb m-0">
                             <li class="breadcrumb-item">
-                                <a href="javascript:void(0);">Details Laundry</a>
+                                <a href="javascript:void(0);">Details Carpet</a>
                             </li>
                         </ol>
                     </div>
-                    <h4 class="page-title">Details Laundry</h4>
+                    <h4 class="page-title">Details Carpet</h4>
                 </div>
             </div>
         </div>
@@ -31,12 +32,12 @@
                     <div class="card-body">
                         <!-- Tab Content: Settings -->
                         <div class="tab-pane" id="settings">
-                            <form method="post" action="{{ route('laundry.update') }}">
+                            <form method="post" action="{{ route('carpet.update') }}">
                                 @csrf
-                                <input type="hidden" name="id" value="{{ $laundry->id }}">
+                                <input type="hidden" name="id" value="{{ $carpet->id }}">
 
                                 <h5 class="mb-4 text-uppercase">
-                                    <i class="mdi mdi-account-circle me-1"></i> Details Laundry
+                                    <i class="mdi mdi-account-circle me-1"></i> Details Carpet
                                 </h5>
 
                                 <div class="row">
@@ -44,84 +45,68 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Customer Name</label>
-                                            <p class="text-danger">{{ $laundry->name }}</p>
+                                            <p class="text-danger">{{ $carpet->name }}</p>
                                         </div>
                                     </div>
                                     <!-- Customer Phone Number -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Customer Phone Number</label>
-                                            <p class="text-danger">{{ $laundry->phone }}</p>
+                                            <p class="text-danger">{{ $carpet->phone }}</p>
                                         </div>
                                     </div>
                                     <!-- Customer Location -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Customer Location</label>
-                                            <p class="text-danger">{{ $laundry->location }}</p>
+                                            <p class="text-danger">{{ $carpet->location }}</p>
                                         </div>
                                     </div>
                                     <!-- Customer Unique ID -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">Customer Unique ID</label>
-                                            <p class="text-danger">{{ $laundry->unique_id }}</p>
+                                            <label class="form-label">Carpet Unique ID</label>
+                                            <p class="text-danger">{{ $carpet->uniqueid }}</p>
                                         </div>
                                     </div>
                                     <!-- Date Received -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Date Received</label>
-                                            <p class="text-danger">{{ $laundry->date_received }}</p>
+                                            <p class="text-danger">{{ $carpet->date_received }}</p>
                                         </div>
                                     </div>
-                                    <!-- Quantity -->
-                                    <div class="col-md-6">
+
+                                     <!-- Date Delivered -->
+                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label class="form-label">Quantity</label>
-                                            <p class="text-danger">{{ $laundry->quantity }}</p>
+                                            <label class="form-label">Date Delivered</label>
+                                            <p class="text-danger">{{ $carpet->date_delivered }}</p>
                                         </div>
                                     </div>
-                                    <!-- Item Description -->
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Item Description</label>
-                                            <p class="text-danger">{{ $laundry->item_description }}</p>
-                                        </div>
-                                    </div>
-                                    <!-- Weight -->
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Weight</label>
-                                            <p class="text-danger">{{ $laundry->weight }}</p>
-                                        </div>
-                                    </div>
+
+
+
                                     <!-- Price -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Price</label>
-                                            <p class="text-danger">{{ $laundry->price }}</p>
+                                            <p class="text-danger">{{ $carpet->price }}</p>
                                         </div>
                                     </div>
-                                    <!-- Total Amount -->
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Total Amount</label>
-                                            <p class="text-danger">{{ $laundry->total }}</p>
-                                        </div>
-                                    </div>
+
                                     <!-- Delivery Status -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Delivery Status</label>
-                                            <p class="text-danger">{{ $laundry->delivered }}</p>
+                                            <p class="text-danger">{{ $carpet->delivered }}</p>
                                         </div>
                                     </div>
                                     <!-- Payment Status -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Payment Status</label>
-                                            <p class="text-danger">{{ $laundry->payment_status }}</p>
+                                            <p class="text-danger">{{ $carpet->payment_status }}</p>
                                         </div>
                                     </div>
                                 </div> <!-- End Row -->

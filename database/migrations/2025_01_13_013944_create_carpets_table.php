@@ -18,6 +18,8 @@ return new class extends Migration
             $table->string('price');
             $table->string('phone');
             $table->string('location')->nullable();
+            $table->date('date_received')->nullable();
+            $table->date('date_delivered')->nullable();
             $table->string('payment_status');
             $table->string('delivered');
             $table->timestamps();

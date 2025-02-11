@@ -112,7 +112,8 @@
     <div class="col-md-6">
         <div class="mb-3">
             <label for="firstname" class="form-label">Item Description    </label>
-            <input type="text" name="item_description" class="form-control @error('item_description') is-invalid @enderror"   >
+            <textarea required=""  name="item_description" class="form-control"  @error('item_description') is-invalid @enderror rows="5"></textarea>
+            {{-- <input type="text"  name="item_description" class="form-control @error('item_description') is-invalid @enderror"   > --}}
              @error('item_description')
       <span class="text-danger"> {{ $message }} </span>
             @enderror
@@ -149,14 +150,19 @@
         </div>
     </div>
 
-
-     <div class="col-md-6">
+    <div class="col-md-6">
         <div class="mb-3">
-            <label for="firstname" class="form-label">Delivery Status    </label>
-            <input type="text" name="delivered" class="form-control @error('delivered') is-invalid @enderror"   >
-             @error('delivered')
+            <label for="firstname" class="form-label">Delivery Status </label>
+           <select name="delivered" class="form-select" @error('delivered') is-invalid @enderror id="example-select">
+                    <option selected disabled >Select Status </option>
+                    <option value="Delivered">Delivered</option>
+                    <option value="Not Delivered">Not Delivered</option>
+
+                </select>
+                @error('delivered')
       <span class="text-danger"> {{ $message }} </span>
             @enderror
+
         </div>
     </div>
 

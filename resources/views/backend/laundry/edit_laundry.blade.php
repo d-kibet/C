@@ -117,7 +117,7 @@
     <div class="col-md-6">
         <div class="mb-3">
             <label for="firstname" class="form-label">Item Description    </label>
-            <input type="text" name="item_description" class="form-control @error('item_description') is-invalid @enderror" value="{{ $laundry->item_description }}"  >
+            <textarea required=""  name="item_description" class="form-control"  @error('item_description') is-invalid @enderror rows="5"> {{ old('item_description', $laundry->item_description) }} </textarea>
              @error('item_description')
       <span class="text-danger"> {{ $message }} </span>
             @enderror
@@ -154,14 +154,19 @@
         </div>
     </div>
 
-
-     <div class="col-md-6">
+    <div class="col-md-6">
         <div class="mb-3">
-            <label for="firstname" class="form-label">Delivery Status    </label>
-            <input type="text" name="delivered" class="form-control @error('delivered') is-invalid @enderror" value="{{ $laundry->delivered }}"  >
-             @error('delivered')
+            <label for="firstname" class="form-label">Delivery Status </label>
+           <select name="delivered" class="form-select" @error('delivered') is-invalid @enderror id="example-select">
+                    <option selected disabled >Select Status </option>
+                    <option value="Delivered" {{ $laundry->delivered == 'Delivered' ? 'selected' : '' }}>Delivered</option>
+                    <option value="Not Delivered" {{ $laundry->delivered == 'Not Delivered' ? 'selected' : '' }}>Not Delivered</option>
+
+                </select>
+                @error('delivered')
       <span class="text-danger"> {{ $message }} </span>
             @enderror
+
         </div>
     </div>
 
@@ -170,9 +175,9 @@
             <label for="firstname" class="form-label">Payment Status </label>
            <select name="payment_status" class="form-select" @error('payment_status') is-invalid @enderror id="example-select">
                     <option selected disabled >Select Status </option>
-                    <option value="Paid" {{ $laundry->type == 'Paid' ? 'selected' : '' }}>Paid</option>
-                    <option value="Partial" {{ $laundry->type == 'Partialy Paid' ? 'selected' : '' }}>Partialy Paid</option>
-                    <option value="Not Paid" {{ $laundry->type == 'Not Paid' ? 'selected' : '' }}>Not Paid</option>
+                    <option value="Paid" {{ $laundry->payment_status == 'Paid' ? 'selected' : '' }}>Paid</option>
+                    <option value="Partial" {{ $laundry->payment_status == 'Partialy Paid' ? 'selected' : '' }}>Partialy Paid</option>
+                    <option value="Not Paid" {{ $laundry->payment_status == 'Not Paid' ? 'selected' : '' }}>Not Paid</option>
 
                 </select>
                 @error('payment_status')

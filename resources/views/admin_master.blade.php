@@ -77,10 +77,13 @@
 
         <!-- DataTables Initialization -->
         <script>
-            $(document).ready(function() {
-                var table = $('#myTable').DataTable();
-                console.log('DataTable initialized:', table);
-            });
+             $(document).ready(function() {
+        var table = $('#myTable').DataTable({
+            order: [[0, 'desc']],
+            responsive: true  // Enable DataTables' responsive features
+        });
+        console.log('DataTable initialized:', table);
+         });
         </script>
 
         <!-- Additional Plugins -->

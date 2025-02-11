@@ -60,6 +60,16 @@
         </div>
     </div>
 
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="firstname" class="form-label">Customer's Name    </label>
+            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror" value="{{ $carpet-> name}}"  >
+             @error('name')
+      <span class="text-danger"> {{ $message }} </span>
+            @enderror
+        </div>
+    </div>
+
 
                <!-- Carpet Size -->
                <div class="col-md-6">
@@ -130,6 +140,26 @@
             <label for="firstname" class="form-label">Customer's Location    </label>
             <input type="text" name="location" class="form-control @error('location') is-invalid @enderror" value="{{ $carpet-> location}}"  >
              @error('location')
+      <span class="text-danger"> {{ $message }} </span>
+            @enderror
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="firstname" class="form-label">Date Received   </label>
+            <input type="date" name="date_received" class="form-control @error('date_received') is-invalid @enderror" value="{{ $carpet->date_received }}"  >
+             @error('date_received')
+      <span class="text-danger"> {{ $message }} </span>
+            @enderror
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="firstname" class="form-label">Date Delivered   </label>
+            <input type="date" name="date_delivered" class="form-control @error('date_delivered') is-invalid @enderror" value="{{ $carpet->date_delivered }}"  >
+             @error('date_delivered')
       <span class="text-danger"> {{ $message }} </span>
             @enderror
         </div>

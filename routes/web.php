@@ -23,7 +23,7 @@ use App\Http\Controllers\Home\ServiceController;
 */
 
 Route::get('/', function () {
-    return view('frontend.index');
+    return redirect()->route('login');
 });
 
 Route::get('/dashboard', function () {
@@ -56,6 +56,7 @@ Route::controller(CarpetController::class)->group(function(){
     Route::get('/edit/carpet/{id}','EditCarpet')->name('edit.carpet');
     Route::post('/update/carpet','UpdateCarpet')->name('carpet.update');
     Route::get('/delete/carpet/{id}','DeleteCarpet')->name('delete.carpet');
+    Route::get('/details/carpet/{id}','DetailsCarpet')->name('details.carpet');
 
     });
 
@@ -81,6 +82,7 @@ Route::controller(MpesaController::class)->group(function(){
     Route::get('/edit/mpesa/{id}','EditMpesa')->name('edit.mpesa');
     Route::post('/update/mpesa','UpdateMpesa')->name('mpesa.update');
     Route::get('/delete/mpesa/{id}','DeleteMpesa')->name('delete.mpesa');
+    Route::get('/mpesa-compare', 'CompareDays')->name('mpesa.compare');
 
     });
 

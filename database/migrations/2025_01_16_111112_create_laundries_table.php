@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('location');
             $table->string('unique_id')->nullable();
             $table->date('date_received')->nullable();
+            $table->date('date_delivered')->nullable();
             $table->string('quantity');
             $table->string('item_description');
             $table->string('weight')->nullable();
