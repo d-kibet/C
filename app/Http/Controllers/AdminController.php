@@ -229,7 +229,7 @@ public function UpdateAdmin(Request $request)
         'id'    => 'required|exists:users,id',
         'name'  => 'required|string|max:255',
         'email' => 'required|string|email|max:255|unique:users,email,' . $request->id,
-        'phone' => 'required|string|max:10',
+        'phone' => 'required|string|max:13',
         'roles' => 'nullable',  // Adjust this based on whether you expect a single value or an array.
     ]);
 

@@ -11,62 +11,64 @@ class MpesaController extends Controller
 {
     public function AllMpesa(){
 
-        // Define today and yesterday using Carbon
-        $today = Carbon::today();
-        $yesterday = Carbon::yesterday();
 
-        // Calculate today's total
-        $todayTotal = Mpesa::whereDate('date', $today)
-            ->get()
-            ->sum(function ($item) {
-                return (float)$item->cash
-                     + (float)$item->float
-                     + (float)($item->working ?? 0)
-                     + (float)$item->account;
-            });
+     // Define today and yesterday using Carbon
+$today = Carbon::today();
+$yesterday = Carbon::yesterday();
 
-        // Calculate yesterday's total
-        $yesterdayTotal = Mpesa::whereDate('date', $yesterday)
-            ->get()
-            ->sum(function ($item) {
-                return (float)$item->cash
-                     + (float)$item->float
-                     + (float)($item->working ?? 0)
-                     + (float)$item->account;
-            });
+// Calculate today's total
+$todayTotal = Mpesa::whereDate('date', $today)
+    ->get()
+    ->sum(function ($item) {
+        return (float)$item->cash
+             + (float)$item->float
+             + (float)($item->working ?? 0)
+             + (float)$item->account;
+    });
 
-        // Compute the summary difference
-        $summaryDifference = $todayTotal - $yesterdayTotal;
+// Calculate yesterday's total
+$yesterdayTotal = Mpesa::whereDate('date', $yesterday)
+    ->get()
+    ->sum(function ($item) {
+        return (float)$item->cash
+             + (float)$item->float
+             + (float)($item->working ?? 0)
+             + (float)$item->account;
+    });
 
-        // Retrieve all Mpesa records in ascending order by date for row-level calculations
-        $mpesaData = Mpesa::orderBy('date', 'asc')->get();
-        $previousTotal = null;
-        foreach ($mpesaData as $item) {
-            // Calculate total for this record
-            $total = (float)$item->cash
-                   + (float)$item->float
-                   + (float)($item->working ?? 0)
-                   + (float)$item->account;
-            $item->total = $total;
+// Compute the summary difference
+$summaryDifference = $yesterdayTotal - $todayTotal;
 
-            // Calculate the difference compared to the previous record
-            if ($previousTotal !== null) {
-                $item->difference = $total - $previousTotal;
-            } else {
-                $item->difference = 0; // First record: no previous value
-            }
-            $previousTotal = $total;
-        }
+// Retrieve all Mpesa records so that rows with today's date come first,
+// then the rest in descending order by date.
+$mpesaData = Mpesa::orderByRaw('(date = CURDATE()) desc, date desc')->get();
 
-        // Pass all data to the view
-        return view('backend.mpesa.all_mpesa', compact(
-            'mpesaData',
-            'todayTotal',
-            'yesterdayTotal',
-            'summaryDifference'
-        ));
+$previousTotal = null;
+foreach ($mpesaData as $item) {
+    // Calculate total for this record
+    $total = (float)$item->cash
+           + (float)$item->float
+           + (float)($item->working ?? 0)
+           + (float)$item->account;
+    $item->total = $total;
 
+    // Calculate the difference compared to the previous record
+    if ($previousTotal !== null) {
+        $item->difference = $total - $previousTotal;
+    } else {
+        $item->difference = 0; // First record: no previous value
     }
+    $previousTotal = $total;
+}
+
+// Pass all data to the view
+return view('backend.mpesa.all_mpesa', compact(
+    'mpesaData',
+    'todayTotal',
+    'yesterdayTotal',
+    'summaryDifference'
+));
+}
 
     public function AddMpesa(){
         return view('backend.mpesa.add_mpesa');
@@ -177,37 +179,37 @@ class MpesaController extends Controller
         return redirect()->back()->with($notification);
     }
 
-    public function CompareDays(Request $request)
-    {
-        // If the admin hasn't provided dates, set defaults:
-        // Default first_date is yesterday, and default second_date is today.
-        $firstDate = $request->input('first_date', Carbon::yesterday()->toDateString());
-        $secondDate = $request->input('second_date', Carbon::today()->toDateString());
+    public function downloadAllMpesa()
+{
+    // Fetch all Mpesa records.
+    $mpesaRecords = \App\Models\Mpesa::all();
+    $filename = 'mpesa_all.csv';
 
-        // Calculate the total for the first selected day
-        $firstTotal = Mpesa::whereDate('date', $firstDate)
-            ->get()
-            ->sum(function ($item) {
-                return (float)$item->cash
-                     + (float)$item->float
-                     + (float)($item->working ?? 0)
-                     + (float)$item->account;
-            });
+    $headers = [
+        'Content-Type' => 'text/csv',
+        'Content-Disposition' => 'attachment; filename=' . $filename,
+    ];
 
-        // Calculate the total for the second selected day
-        $secondTotal = Mpesa::whereDate('date', $secondDate)
-            ->get()
-            ->sum(function ($item) {
-                return (float)($item->cash ?? 0)
-                     + (float)($item->float ?? 0)
-                     + (float)($item->working ?? 0)
-                     + (float)($item->account ?? 0);
-            });
+    $columns = ['Date', 'Cash', 'Float', 'Working', 'Account'];
 
-        // Compute the difference (you can adjust the formula based on what "difference" means to you)
-        $difference = $secondTotal - $firstTotal;
+    $callback = function() use ($mpesaRecords, $columns) {
+        $file = fopen('php://output', 'w');
+        fputcsv($file, $columns);
+        foreach ($mpesaRecords as $record) {
+            fputcsv($file, [
+                $record->date,
+                $record->cash,
+                $record->float,
+                $record->working,
+                $record->account,
+            ]);
+        }
+        fclose($file);
+    };
 
-        // Pass the values to the view.
-        return view('backend.mpesa.compare', compact('firstDate', 'secondDate', 'firstTotal', 'secondTotal', 'difference'));
-    }
+    return response()->stream($callback, 200, $headers);
+}
+
+
+
 }

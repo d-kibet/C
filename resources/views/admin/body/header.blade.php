@@ -43,6 +43,55 @@
 
 
 
+            <!-- Notifications -->
+            <div class="dropdown d-inline-block">
+                <button type="button" class="btn header-item notification-bell waves-effect" id="notificationDropdown"
+                    data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                    <div class="notification-bell-container">
+                        <i class="ri-notification-3-line notification-bell-icon"></i>
+                        <span class="notification-badge" id="notificationBadge" style="display: none;"></span>
+                        <div class="notification-pulse" id="notificationPulse" style="display: none;"></div>
+                    </div>
+                </button>
+                <div class="dropdown-menu dropdown-menu-lg dropdown-menu-end p-0" aria-labelledby="notificationDropdown" style="min-width: 380px; max-width: 420px;">
+                    <div class="notification-dropdown-header p-3 bg-gradient">
+                        <div class="row align-items-center">
+                            <div class="col">
+                                <h6 class="m-0 text-dark fw-semibold">
+                                    <i class="ri-notification-3-line me-2"></i>Notifications
+                                </h6>
+                            </div>
+                            <div class="col-auto">
+                                <a href="{{ route('notifications.index') }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="ri-external-link-line"></i> View All
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div data-simplebar style="max-height: 400px;" id="notificationList">
+                        <div class="text-center p-4 notification-loading">
+                            <div class="notification-spinner mb-3">
+                                <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <h6 class="text-muted mb-1">Loading notifications</h6>
+                            <p class="text-muted mb-0 small">Please wait a moment...</p>
+                        </div>
+                    </div>
+                    <div class="notification-dropdown-footer p-3 border-top bg-light">
+                        <div class="d-flex gap-2">
+                            <a class="btn btn-sm btn-primary flex-fill" href="{{ route('notifications.index') }}">
+                                <i class="ri-list-check-2"></i> All Notifications
+                            </a>
+                            <a class="btn btn-sm btn-warning" href="{{ route('notifications.overdue') }}">
+                                <i class="ri-time-line"></i> Overdue
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="dropdown d-none d-lg-inline-block ms-1">
                 <button type="button" class="btn header-item noti-icon waves-effect" data-toggle="fullscreen">
                     <i class="ri-fullscreen-line"></i>
@@ -69,11 +118,6 @@
                     <!-- item-->
                     <a class="dropdown-item" href="{{ route('admin.profile') }}"><i class="ri-user-line align-middle me-1"></i> Profile</a>
                     <a class="dropdown-item" href="{{ route('change.password') }}"><i class="ri-wallet-2-line align-middle me-1"></i> Change Password</a>
-                    <a class="dropdown-item d-block" href="#"><span
-                            class="badge bg-success float-end mt-1">11</span><i
-                            class="ri-settings-2-line align-middle me-1"></i> Settings</a>
-                    <a class="dropdown-item" href="#"><i class="ri-lock-unlock-line align-middle me-1"></i> Lock
-                        screen</a>
                     <div class="dropdown-divider"></div>
                     <a class="dropdown-item text-danger" href="{{ route('admin.logout') }}"><i
                             class="ri-shut-down-line align-middle me-1 text-danger"></i> Logout</a>

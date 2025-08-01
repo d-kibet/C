@@ -109,6 +109,13 @@
                                             <p class="text-danger">{{ $carpet->payment_status }}</p>
                                         </div>
                                     </div>
+                                     <!-- Transaction Code -->
+                                     <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Transaction Code</label>
+                                            <p class="text-danger">{{ $carpet->transaction_code }}</p>
+                                        </div>
+                                    </div>
                                 </div> <!-- End Row -->
                             </form>
                         </div>

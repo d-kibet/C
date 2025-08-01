@@ -20,7 +20,8 @@ return new class extends Migration
             $table->string('location')->nullable();
             $table->date('date_received')->nullable();
             $table->date('date_delivered')->nullable();
-            $table->string('payment_status');
+            $table->string('payment_status')->nullable();
+            $table->string('transaction_code')->nullable();
             $table->string('delivered');
             $table->timestamps();
         });

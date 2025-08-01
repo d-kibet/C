@@ -7,6 +7,7 @@ use App\Http\Controllers\Backend\CarpetController;
 use App\Http\Controllers\Backend\LaundryController;
 use App\Http\Controllers\Backend\MpesaController;
 use App\Http\Controllers\Backend\RoleController;
+use App\Http\Controllers\Backend\ReportController;
 use App\Http\Controllers\Home\ContactController;
 use App\Http\Controllers\Home\AboutController;
 use App\Http\Controllers\Home\ServiceController;
@@ -26,9 +27,13 @@ Route::get('/', function () {
     return redirect()->route('login');
 });
 
-Route::get('/dashboard', function () {
-    return view('admin.index');
-})->middleware(['auth', 'verified'])->name('dashboard');
+// Route::get('/dashboard', function () {
+//     return view('admin.index');
+// })->middleware(['auth', 'verified'])->name('dashboard');
+
+Route::get('/dashboard', [CarpetController::class, 'CarpetDashboard'])
+    ->middleware(['auth', 'verified'])
+    ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -57,6 +62,11 @@ Route::controller(CarpetController::class)->group(function(){
     Route::post('/update/carpet','UpdateCarpet')->name('carpet.update');
     Route::get('/delete/carpet/{id}','DeleteCarpet')->name('delete.carpet');
     Route::get('/details/carpet/{id}','DetailsCarpet')->name('details.carpet');
+    Route::get('reports/carpets/download-all','downloadAllCarpets')->name('reports.carpets.downloadAll');
+    Route::get('reports/carpets/month','viewCarpetsByMonth')->name('reports.carpets.viewMonth');
+    Route::get('reports/carpets/month/download','downloadCarpetsByMonth')->name('reports.carpets.downloadMonth');
+    Route::get('reports/carpets/month/new/download','downloadNewCarpetsByMonth')->name('reports.carpets.downloadNewMonth');
+
 
     });
 
@@ -70,6 +80,10 @@ Route::controller(LaundryController::class)->group(function(){
     Route::post('/update/laundry','UpdateLaundry')->name('laundry.update');
     Route::get('/delete/laundry/{id}','DeleteLaundry')->name('delete.laundry');
     Route::get('/details/laundry/{id}','DetailsLaundry')->name('details.laundry');
+    Route::get('reports/laundry/download-all','downloadAllLaundry')->name('reports.laundry.downloadAll');
+    Route::get('reports/laundry/month','viewLaundryByMonth')->name('reports.laundry.viewMonth');
+    Route::get('reports/laundry/month/download','downloadLaundryByMonth')->name('reports.laundry.downloadMonth');
+    Route::get('reports/laundry/month/new/download','downloadNewLaundryByMonth')->name('reports.laundry.downloadNewMonth');
 
     });
 
@@ -82,7 +96,20 @@ Route::controller(MpesaController::class)->group(function(){
     Route::get('/edit/mpesa/{id}','EditMpesa')->name('edit.mpesa');
     Route::post('/update/mpesa','UpdateMpesa')->name('mpesa.update');
     Route::get('/delete/mpesa/{id}','DeleteMpesa')->name('delete.mpesa');
-    Route::get('/mpesa-compare', 'CompareDays')->name('mpesa.compare');
+    Route::get('reports/mpesa/download-all','downloadAllMpesa')->name('reports.mpesa.downloadAll');
+
+    });
+
+    /// Report All Route
+Route::controller(ReportController::class)->group(function(){
+
+    Route::get('reports/carpets/today','CarpetsToday')->name('reports.carpets.today');
+    Route::get('reports/laundry/today','LaundryToday')->name('reports.laundry.today');
+    Route::get('reports/mpesa/today','MpesaToday')->name('reports.mpesa.today');
+    Route::get('reports/landing','index')->name('reports.specific_report');
+    Route::post('reports/landing/handle','handle')->name('reports.specific_report.handle');
+    Route::get('reports/performance','performance')->name('reports.performance');
+    Route::post('reports/performance-data','performanceData')->name('api.performance.data');
 
     });
 
@@ -169,5 +196,27 @@ Route::controller(AdminController::class)->group(function(){
 
    });
 
+// Audit Trail Routes
+Route::controller(App\Http\Controllers\Backend\AuditController::class)->middleware(['auth'])->group(function(){
+    Route::get('/audit', 'index')->name('audit.index')->middleware('permission:mpesa.compare');
+    Route::get('/audit/{audit}', 'show')->name('audit.show')->middleware('permission:mpesa.compare');
+    Route::get('/audit-stats', 'stats')->name('audit.stats')->middleware('permission:mpesa.compare');
+    Route::get('/audit/export', 'export')->name('audit.export')->middleware('permission:mpesa.compare');
+});
+
+// Notification Routes
+Route::controller(App\Http\Controllers\Backend\NotificationController::class)->middleware(['auth'])->group(function(){
+    Route::get('/notifications', 'index')->name('notifications.index');
+    Route::get('/notifications/unread', 'unread')->name('notifications.unread');
+    Route::post('/notifications/{id}/read', 'markAsRead')->name('notifications.read');
+    Route::post('/notifications/mark-all-read', 'markAllAsRead')->name('notifications.mark-all-read');
+    Route::delete('/notifications/{id}', 'destroy')->name('notifications.delete');
+    Route::get('/notifications/overdue', 'overdueDeliveries')->name('notifications.overdue');
+});
+
+// Reports API Routes (for performance dashboard)
+Route::post('/api/performance/data', [ReportController::class, 'performanceData'])
+    ->name('api.performance.data')
+    ->middleware(['auth']);
 
 require __DIR__.'/auth.php';

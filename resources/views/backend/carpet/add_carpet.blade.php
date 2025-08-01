@@ -81,7 +81,7 @@
                                                 id="multiplier"
                                                 class="form-control @error('multiplier') is-invalid @enderror"
                                                 step="any"
-                                                value="30"  
+                                                value="30"
                                             >
                                             @error('multiplier')
                                                 <span class="text-danger">{{ $message }}</span>
@@ -102,6 +102,21 @@
                                                 step="any"
                                             >
                                             @error('price')
+                                                <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="name" class="form-label">Customer Name </label>
+                                            <input
+                                                type="text"
+                                                name="name"
+                                                id="name"
+                                                class="form-control @error('name') is-invalid @enderror"
+                                            >
+                                            @error('name')
                                                 <span class="text-danger">{{ $message }}</span>
                                             @enderror
                                         </div>
@@ -157,7 +172,7 @@
                                     <!-- Date Delivered -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
-                                            <label for="date_delivered" class="form-label">Date Delivered</label>
+                                            <label for="date_delivered" class="form-label">Date To Deliver</label>
                                             <input
                                                 type="date"
                                                 name="date_delivered"
@@ -173,16 +188,34 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="payment_status" class="form-label">Payment Status</label>
-                                            <select
-                                                name="payment_status"
-                                                id="payment_status"
-                                                class="form-select @error('payment_status') is-invalid @enderror"
-                                            >
+                                            <select name="payment_status" id="payment_status" class="form-select @error('payment_status') is-invalid @enderror">
                                                 <option selected disabled>Select Status</option>
-                                                <option value="Paid">Paid</option>
-                                                <option value="Not Paid">Not Paid</option>
+                                                <option value="Paid" {{ old('payment_status') == 'Paid' ? 'selected' : '' }}>Paid</option>
+                                                <option value="Not Paid" {{ old('payment_status') == 'Not Paid' ? 'selected' : '' }}>Not Paid</option>
                                             </select>
                                             @error('payment_status')
+                                                <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <!-- Transaction Code -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="transaction_code" class="form-label">Transaction Code</label>
+                                            <input
+                                                type="text"
+                                                name="transaction_code"
+                                                id="transaction_code"
+                                                class="form-control @error('transaction_code') is-invalid @enderror"
+                                                value="{{ old('transaction_code') }}"
+                                                list="transaction_codes"
+                                            >
+                                            <datalist id="transaction_codes">
+                                                <option value="Cash">
+                                                <!-- Add additional options if needed -->
+                                            </datalist>
+                                            @error('transaction_code')
                                                 <span class="text-danger">{{ $message }}</span>
                                             @enderror
                                         </div>
@@ -266,19 +299,31 @@ document.addEventListener('DOMContentLoaded', function() {
     sizeInput.addEventListener('input', calculatePrice);
     multiplierInput.addEventListener('input', calculatePrice);
 });
+
+
+document.addEventListener("DOMContentLoaded", function() {
+    var paymentStatus = document.getElementById("payment_status");
+    var transactionCode = document.getElementById("transaction_code");
+
+    function toggleTransactionCode() {
+        // Enable the Transaction Code input only if Payment Status is "Paid"
+        if (paymentStatus.value === "Paid") {
+            transactionCode.disabled = false;
+        } else {
+            transactionCode.disabled = true;
+        }
+    }
+
+    // Run on page load to set the correct state based on the current value
+    toggleTransactionCode();
+
+    // Update the state when the payment status is changed
+    paymentStatus.addEventListener("change", toggleTransactionCode);
+});
+
+
 </script>
 
-{{-- If you have an image upload (not used in this form, but left if needed) --}}
-<script type="text/javascript">
-$(document).ready(function(){
-    $('#image').change(function(e){
-        var reader = new FileReader();
-        reader.onload = function(e){
-            $('#showImage').attr('src', e.target.result);
-        }
-        reader.readAsDataURL(e.target.files[0]);
-    });
-});
-</script>
+
 
 @endsection

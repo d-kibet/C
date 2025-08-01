@@ -34,6 +34,19 @@ class AuthenticatedSessionController extends Controller
             'alert-type' => 'success'
         );
 
+        // Check if the intended redirect is an API endpoint, if so ignore it
+        $intended = session('url.intended');
+        if ($intended && (
+            str_contains($intended, '/api/') || 
+            str_contains($intended, '/notifications/unread') ||
+            str_contains($intended, '.json') ||
+            str_ends_with($intended, '/unread')
+        )) {
+            // Clear the intended redirect and go to dashboard
+            session()->forget('url.intended');
+            return redirect(RouteServiceProvider::HOME)->with($notification);
+        }
+        
         return redirect()->intended(RouteServiceProvider::HOME)->with($notification);
     }
 

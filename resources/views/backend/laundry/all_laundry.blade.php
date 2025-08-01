@@ -7,17 +7,28 @@
         <div class="row">
             <div class="col-12">
                 <div class="page-title-box d-flex justify-content-between align-items-center">
-                    <h4 class="page-title">All Laundry Data</h4>
-                    <div class="page-title-right">
-                        <ol class="breadcrumb m-0">
-                            <li>
-                                <a href="{{ route('add.laundry') }}" class="btn btn-primary rounded-pill waves-effect waves-light">
-                                    Add Laundry
-                                </a>
-                            </li>
-                        </ol>
+                    <h4 class="page-title mb-0">All Laundry Data</h4>
+                    <div class="page-title-right d-flex align-items-center">
+                        <!-- Add Carpet Button -->
+                        <a
+                            href="{{ route('add.laundry') }}"
+                            class="btn btn-primary rounded-pill waves-effect waves-light me-2"
+                        >
+                            Add Laundry
+                        </a>
+
+                        <!-- CSV Download Button (shown only if user has permission) -->
+                        @can('mpesa.compare')
+                            <a
+                                href="{{ route('reports.laundry.downloadAll') }}"
+                                class="btn btn-secondary rounded-pill waves-effect waves-light"
+                            >
+                                <i class="mdi mdi-download"></i> Download Laundry CSV
+                            </a>
+                        @endcan
                     </div>
                 </div>
+
             </div>
         </div>
         <!-- end page title -->
@@ -86,5 +97,46 @@
         </div> <!-- end row -->
     </div> <!-- end container-fluid -->
 </div> <!-- end content -->
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById("download-csv").addEventListener("click", function(){
+            // Reference the table
+            var table = document.getElementById("myTable");
+            if (!table) {
+                console.error("Table with ID 'myTable' not found.");
+                return;
+            }
+            var rows = table.querySelectorAll("tr");
+            var csv = [];
+
+            // Loop through each row and collect cell text, skipping the last cell (action column)
+            rows.forEach(function(row) {
+                var cols = row.querySelectorAll("td, th");
+                var rowData = [];
+                // Loop through columns, excluding the last one
+                for (var i = 0; i < cols.length - 1; i++) {
+                    // Escape double quotes and wrap text in quotes
+                    rowData.push('"' + cols[i].innerText.replace(/"/g, '""') + '"');
+                }
+                csv.push(rowData.join(","));
+            });
+
+            // Create a CSV file blob
+            var csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
+
+            // Create a temporary download link and trigger a download
+            var downloadLink = document.createElement("a");
+            downloadLink.download = "laundry_data.csv";
+            downloadLink.href = window.URL.createObjectURL(csvFile);
+            downloadLink.style.display = "none";
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+        });
+    });
+    </script>
+
+
 
 @endsection

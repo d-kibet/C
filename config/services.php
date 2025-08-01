@@ -31,4 +31,12 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
+    'roberms' => [
+        'token_url'      => env('ROBERMS_TOKEN_URL'),
+        'sms_url'        => env('ROBERMS_SMS_URL'),
+        'consumer_key'   => env('ROBERMS_CONSUMER_KEY'),
+        'consumer_pass'  => env('ROBERMS_CONSUMER_PASSWORD'),
+        'sender_name'    => env('ROBERMS_SENDER_NAME'),
+    ],
+
 ];

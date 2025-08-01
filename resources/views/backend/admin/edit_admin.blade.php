@@ -59,7 +59,7 @@
 
 <div class="col-md-6">
 <div class="form-group mb-3">
-<label for="firstname" class="form-label"> Email</label>
+<label for="email" class="form-label"> Email</label>
 <input type="email" name="email" class="form-control"  value="{{ $adminuser->email }}"   >
 
 </div>
@@ -68,7 +68,7 @@
 
 <div class="col-md-6">
 <div class="form-group mb-3">
-<label for="firstname" class="form-label"> Phone</label>
+<label for="phone" class="form-label"> Phone</label>
 <input type="text" name="phone" class="form-control"  value="{{ $adminuser->phone }}"   >
 
 </div>
@@ -78,7 +78,7 @@
 
 <div class="col-md-6">
 <div class="form-group mb-3">
-<label for="firstname" class="form-label">Asign Roles </label>
+<label for="roles" class="form-label">Asign Roles </label>
 <select name="roles" class="form-select" id="example-select">
     <option selected disabled >Select Roles </option>
     @foreach($roles as $role)

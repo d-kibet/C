@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Services\RobermsService;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -11,7 +12,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Make RobermsService a singleton
+    $this->app->singleton(RobermsService::class, function($app) {
+        return new RobermsService();
+    });
     }
 
     /**

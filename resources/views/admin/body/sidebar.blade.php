@@ -73,14 +73,66 @@
                         <li><a href="{{ route('add.mpesa') }}">Add M-pesa Record</a></li>
                         @endif
 
-                        @can('mpesa.compare')
-                        <li><a href="{{ route('mpesa.compare') }}">Compare M-pesa Record</a></li>
-                        @endcan
+
+                    </ul>
+                </li>
+                @endif
+
+                @if(Auth::user()->can('mpesa.compare'))
+                <li>
+                    <a href="javascript: void(0);" data-bs-toggle="collapse">
+                        <i class="fa-regular fa-clipboard"></i>
+                        <span>Reports</span>
+                    </a>
+                    <ul class="sub-menu" aria-expanded="false">
+
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('reports.carpets.today') }}">Carpet's Report</a></li>
+                        @endif
+
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('reports.laundry.today') }}">Laundry Report</a></li>
+                        @endif
+
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('reports.mpesa.today') }}">M-pesa Report</a></li>
+                        @endif
+
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('reports.specific_report') }}">Specific Report</a></li>
+                        @endif
+
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('reports.performance') }}">Performance Dashboard</a></li>
+                        @endif
 
 
                     </ul>
                 </li>
                 @endif
+
+                <!-- System Management -->
+                <li>
+                    <a href="javascript: void(0);" data-bs-toggle="collapse">
+                        <i class="ri-settings-4-line"></i>
+                        <span>System</span>
+                    </a>
+                    <ul class="sub-menu" aria-expanded="false">
+                        <li><a href="{{ route('notifications.index') }}">
+                            <i class="ri-notification-3-line me-2"></i>Notifications
+                        </a></li>
+                        
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('audit.index') }}">
+                            <i class="ri-file-list-3-line me-2"></i>Audit Trail
+                        </a></li>
+                        @endif
+                        
+                        <li><a href="{{ route('notifications.overdue') }}">
+                            <i class="ri-time-line me-2"></i>Overdue Alerts
+                        </a></li>
+                    </ul>
+                </li>
 
                 @if(Auth::user()->can('roles.menu'))
                 <li>
@@ -164,7 +216,7 @@
                 </li>
                 @endif
 
-                <li class="menu-title">Pages</li>
+
 
 
 

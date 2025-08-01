@@ -182,6 +182,28 @@
         </div>
     </div>
 
+     <!-- Transaction Code -->
+     <div class="col-md-6">
+        <div class="mb-3">
+            <label for="transaction_code" class="form-label">Transaction Code</label>
+            <input
+                type="text"
+                name="transaction_code"
+                id="transaction_code"
+                class="form-control @error('transaction_code') is-invalid @enderror"
+                value="{{ old('transaction_code', $carpet->transaction_code) }}"
+                list="transaction_codes"
+            >
+            <datalist id="transaction_codes">
+                <option value="Cash">
+            </datalist>
+            @error('transaction_code')
+                <span class="text-danger">{{ $message }}</span>
+            @enderror
+        </div>
+    </div>
+
+
     <div class="col-md-6">
         <div class="mb-3">
             <label for="firstname" class="form-label">Delivery Status </label>
@@ -229,14 +251,17 @@
                         const multiplierInput = document.getElementById('multiplier');
                         const priceInput = document.getElementById('price');
 
-                        // Function to calculate the carpet price
+                        // On page load, if there is a price value, round it to one decimal place.
+                        if (priceInput.value) {
+                            priceInput.value = parseFloat(priceInput.value).toFixed(1);
+                        }
+
                         function calculatePrice() {
                             let sizeValue = sizeInput.value.trim();
                             let computedSize = 0;
 
                             // Check if the size input contains '*' or 'x' (case-insensitive)
                             if (/[x\*]/i.test(sizeValue)) {
-                                // Split using a regular expression that matches '*' or 'x'
                                 const parts = sizeValue.split(/[*x]/i);
                                 if (parts.length === 2) {
                                     const num1 = parseFloat(parts[0]);
@@ -246,33 +271,27 @@
                                     }
                                 }
                             } else {
-                                // Otherwise, treat the input as a single number
+                                // Treat the input as a single number
                                 computedSize = parseFloat(sizeValue) || 0;
                             }
 
                             const multiplier = parseFloat(multiplierInput.value) || 0;
-                            priceInput.value = computedSize * multiplier;
+                            const finalPrice = computedSize * multiplier;
+
+                            // Round to one decimal place and update the price input
+                            if (!isNaN(finalPrice)) {
+                                priceInput.value = finalPrice.toFixed(1);
+                            } else {
+                                priceInput.value = '';
+                            }
                         }
 
-                        // Update price when either the size or multiplier is changed
+                        // Update price whenever size or multiplier changes
                         sizeInput.addEventListener('input', calculatePrice);
                         multiplierInput.addEventListener('input', calculatePrice);
                     });
-                </script>
+                    </script>
 
 
-
-<script type="text/javascript">
-
-	$(document).ready(function(){
-		$('#image').change(function(e){
-			var reader = new FileReader();
-			reader.onload =  function(e){
-				$('#showImage').attr('src',e.target.result);
-			}
-			reader.readAsDataURL(e.target.files['0']);
-		});
-	});
-</script>
 
 @endsection
