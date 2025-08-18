@@ -55,8 +55,11 @@ class ExpenseController extends Controller
     public function create()
     {
         $categories = ExpenseCategory::active()->ordered()->get();
-        // Temporary fix: Use a simpler query without complex ordering
-        $recentVendors = collect([]);
+        // Get unique vendor names (MySQL compatible)
+        $recentVendors = Expense::distinct()
+                               ->pluck('vendor_name')
+                               ->filter()
+                               ->take(10);
 
         return view('backend.expenses.create', compact('categories', 'recentVendors'));
     }
@@ -115,8 +118,11 @@ class ExpenseController extends Controller
     public function edit(Expense $expense)
     {
         $categories = ExpenseCategory::active()->ordered()->get();
-        // Temporary fix: Use a simpler query without complex ordering
-        $recentVendors = collect([]);
+        // Get unique vendor names (MySQL compatible)
+        $recentVendors = Expense::distinct()
+                               ->pluck('vendor_name')
+                               ->filter()
+                               ->take(10);
 
         return view('backend.expenses.edit', compact('expense', 'categories', 'recentVendors'));
     }
