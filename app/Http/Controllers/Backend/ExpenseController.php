@@ -55,11 +55,8 @@ class ExpenseController extends Controller
     public function create()
     {
         $categories = ExpenseCategory::active()->ordered()->get();
-        $recentVendors = Expense::selectRaw('vendor_name, MAX(created_at) as latest_date')
-                               ->groupBy('vendor_name')
-                               ->orderBy('latest_date', 'desc')
-                               ->limit(10)
-                               ->pluck('vendor_name');
+        // Temporary fix: Use a simpler query without complex ordering
+        $recentVendors = collect([]);
 
         return view('backend.expenses.create', compact('categories', 'recentVendors'));
     }
@@ -118,11 +115,8 @@ class ExpenseController extends Controller
     public function edit(Expense $expense)
     {
         $categories = ExpenseCategory::active()->ordered()->get();
-        $recentVendors = Expense::selectRaw('vendor_name, MAX(created_at) as latest_date')
-                               ->groupBy('vendor_name')
-                               ->orderBy('latest_date', 'desc')
-                               ->limit(10)
-                               ->pluck('vendor_name');
+        // Temporary fix: Use a simpler query without complex ordering
+        $recentVendors = collect([]);
 
         return view('backend.expenses.edit', compact('expense', 'categories', 'recentVendors'));
     }
