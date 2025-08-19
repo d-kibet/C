@@ -212,6 +212,7 @@ Route::controller(App\Http\Controllers\Backend\NotificationController::class)->m
     Route::post('/notifications/mark-all-read', 'markAllAsRead')->name('notifications.mark-all-read');
     Route::delete('/notifications/{id}', 'destroy')->name('notifications.delete');
     Route::get('/notifications/overdue', 'overdueDeliveries')->name('notifications.overdue');
+    Route::post('/notifications/{id}/quick-update', 'quickUpdate')->name('notifications.quick-update');
 });
 
 // Expense Routes
