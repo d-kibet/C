@@ -238,13 +238,13 @@
                                     <input type="file" 
                                            id="cameraInput"
                                            name="camera_temp"
-                                           accept="image/*" 
+                                           accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.bmp,.gif" 
                                            capture="environment" 
                                            style="display: none;">
                                     <input type="file" 
                                            id="galleryInput" 
                                            name="receipt_image"
-                                           accept="image/*" 
+                                           accept="image/*,.jpg,.jpeg,.png,.webp,.heic,.heif,.avif,.bmp,.gif" 
                                            style="display: none;">
                                     
                                     <!-- Preview Area -->
@@ -265,7 +265,7 @@
                                     <div class="upload-help mt-2">
                                         <small class="text-muted">
                                             <i class="fas fa-info-circle me-1"></i>
-                                            Max 5MB • JPEG, PNG, WebP supported
+                                            Max 5MB • All image formats supported (JPEG, PNG, WebP, HEIC, etc.)
                                         </small>
                                     </div>
                                     
@@ -442,10 +442,26 @@ document.addEventListener('DOMContentLoaded', function() {
             source: source
         });
         
-        // Validate file type
-        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        if (!allowedTypes.includes(file.type)) {
-            alert('Please select a valid image file (JPEG, PNG, WebP). Selected type: ' + file.type);
+        // Validate file type - expanded for mobile compatibility
+        const allowedTypes = [
+            'image/jpeg', 
+            'image/jpg', 
+            'image/png', 
+            'image/webp',
+            'image/heic',     // iPhone photos
+            'image/heif',     // iPhone photos
+            'image/avif',     // Modern format
+            'image/bmp',      // Basic bitmap
+            'image/gif'       // GIF images
+        ];
+        
+        // Also check file extension as fallback
+        const fileName = file.name.toLowerCase();
+        const allowedExtensions = ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif', '.avif', '.bmp', '.gif'];
+        const hasValidExtension = allowedExtensions.some(ext => fileName.endsWith(ext));
+        
+        if (!allowedTypes.includes(file.type) && !hasValidExtension) {
+            alert('Please select a valid image file. Selected type: ' + file.type + ', file: ' + file.name);
             return;
         }
         

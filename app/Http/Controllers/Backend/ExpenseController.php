@@ -74,7 +74,7 @@ class ExpenseController extends Controller
             'expense_date' => 'required|date|before_or_equal:today',
             'payment_method' => 'required|in:Cash,M-Pesa,Bank Transfer,Cheque',
             'transaction_reference' => 'nullable|string|max:100',
-            'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120|dimensions:max_width=4000,max_height=4000',
+            'receipt_image' => 'nullable|image|mimes:jpeg,jpg,png,webp,heic,heif,avif,bmp,gif|max:5120|dimensions:max_width=4000,max_height=4000',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -156,7 +156,7 @@ class ExpenseController extends Controller
             'expense_date' => 'required|date|before_or_equal:today',
             'payment_method' => 'required|in:Cash,M-Pesa,Bank Transfer,Cheque',
             'transaction_reference' => 'nullable|string|max:100',
-            'receipt_image' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:5120|dimensions:max_width=4000,max_height=4000',
+            'receipt_image' => 'nullable|image|mimes:jpeg,jpg,png,webp,heic,heif,avif,bmp,gif|max:5120|dimensions:max_width=4000,max_height=4000',
             'notes' => 'nullable|string|max:500',
         ]);
 
