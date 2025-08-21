@@ -181,7 +181,7 @@
                                         <i class="fas fa-image me-1"></i>Current Receipt
                                     </label>
                                     <div class="mb-2">
-                                        <img src="{{ $expense->receipt_preview_url ?: $expense->direct_receipt_url }}" 
+                                        <img src="{{ $expense->direct_receipt_url }}" 
                                              alt="Current Receipt" 
                                              class="img-thumbnail" 
                                              style="max-height: 150px;">

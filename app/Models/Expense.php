@@ -7,13 +7,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Facades\Storage;
-use Spatie\MediaLibrary\HasMedia;
-use Spatie\MediaLibrary\InteractsWithMedia;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
-
-class Expense extends Model implements HasMedia
+class Expense extends Model
 {
-    use HasFactory, Auditable, InteractsWithMedia;
+    use HasFactory, Auditable;
 
     protected $guarded = [];
 
@@ -83,57 +79,31 @@ class Expense extends Model implements HasMedia
         ];
     }
 
-    public function registerMediaCollections(): void
-    {
-        $this->addMediaCollection('receipts')
-            ->acceptsMimeTypes(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
-            ->singleFile();
-    }
-
-    public function registerMediaConversions(Media $media = null): void
-    {
-        $this->addMediaConversion('preview')
-            ->width(300)
-            ->height(300)
-            ->sharpen(10)
-            ->optimize()
-            ->performOnCollections('receipts');
-
-        $this->addMediaConversion('thumb')
-            ->width(150)
-            ->height(150)
-            ->sharpen(10)
-            ->optimize()
-            ->performOnCollections('receipts');
-    }
-
     public function getReceiptUrlAttribute()
     {
-        $media = $this->getFirstMedia('receipts');
-        return $media ? $media->getUrl() : null;
+        if (!$this->receipt_image) {
+            return null;
+        }
+
+        // Always use the route-based serving for consistency across environments
+        return route('expense.receipt', ['expense' => $this->id]);
     }
 
-    public function getReceiptPreviewUrlAttribute()
+    public function getDirectReceiptUrlAttribute()
     {
-        $media = $this->getFirstMedia('receipts');
-        return $media ? $media->getUrl('preview') : null;
-    }
+        if (!$this->receipt_image) {
+            return null;
+        }
 
-    public function getReceiptThumbUrlAttribute()
-    {
-        $media = $this->getFirstMedia('receipts');
-        return $media ? $media->getUrl('thumb') : null;
+        return asset('storage/' . $this->receipt_image);
     }
 
     public function hasValidReceipt()
     {
-        return $this->hasMedia('receipts');
-    }
+        if (!$this->receipt_image) {
+            return false;
+        }
 
-    // Legacy support for old receipt_image column (will be removed after migration)
-    public function getReceiptImageAttribute()
-    {
-        $media = $this->getFirstMedia('receipts');
-        return $media ? $media->file_name : null;
+        return Storage::disk('public')->exists($this->receipt_image);
     }
 }

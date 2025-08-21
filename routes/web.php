@@ -241,6 +241,53 @@ Route::controller(App\Http\Controllers\Backend\ExpenseController::class)->middle
             'environment' => app()->environment(),
         ]);
     })->name('expenses.debug.storage')->middleware('auth');
+    
+    Route::post('/expenses/debug-upload', function(\Illuminate\Http\Request $request) {
+        try {
+            $debugInfo = [
+                'has_file' => $request->hasFile('receipt_image'),
+                'files_array' => array_keys($request->allFiles()),
+                'post_data' => array_keys($request->except(['_token'])),
+                'content_type' => $request->header('Content-Type'),
+                'content_length' => $request->header('Content-Length'),
+                'php_upload_errors' => [
+                    UPLOAD_ERR_OK => 'UPLOAD_ERR_OK',
+                    UPLOAD_ERR_INI_SIZE => 'UPLOAD_ERR_INI_SIZE', 
+                    UPLOAD_ERR_FORM_SIZE => 'UPLOAD_ERR_FORM_SIZE',
+                    UPLOAD_ERR_PARTIAL => 'UPLOAD_ERR_PARTIAL',
+                    UPLOAD_ERR_NO_FILE => 'UPLOAD_ERR_NO_FILE',
+                    UPLOAD_ERR_NO_TMP_DIR => 'UPLOAD_ERR_NO_TMP_DIR',
+                    UPLOAD_ERR_CANT_WRITE => 'UPLOAD_ERR_CANT_WRITE',
+                ],
+            ];
+            
+            if ($request->hasFile('receipt_image')) {
+                $file = $request->file('receipt_image');
+                $debugInfo['file_info'] = [
+                    'original_name' => $file->getClientOriginalName(),
+                    'mime_type' => $file->getMimeType(),
+                    'size' => $file->getSize(),
+                    'extension' => $file->getClientOriginalExtension(),
+                    'is_valid' => $file->isValid(),
+                    'error_code' => $file->getError(),
+                    'error_message' => $debugInfo['php_upload_errors'][$file->getError()] ?? 'Unknown error',
+                ];
+            }
+            
+            return response()->json([
+                'success' => true,
+                'data' => $debugInfo
+            ]);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ], 200); // Return 200 to avoid fetch error
+        }
+    })->name('expenses.debug.upload')->middleware('auth');
     Route::post('/expenses/quick-add', 'quickAdd')->name('expenses.quickAdd');
     Route::post('/expenses/{expense}/approve', 'approve')->name('expenses.approve');
     Route::post('/expenses/{expense}/reject', 'reject')->name('expenses.reject');

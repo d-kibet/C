@@ -217,27 +217,57 @@
                                     <label for="receipt_image" class="form-label">
                                         <i class="fas fa-camera me-1"></i>Receipt Photo
                                     </label>
-                                    <div class="upload-wrapper">
-                                        <input type="file" 
-                                               name="receipt_image" 
-                                               id="receipt_image" 
-                                               class="form-control"
-                                               accept="image/*"
-                                               capture="environment">
-                                        <div class="upload-help mt-2">
-                                            <div class="row">
-                                                <div class="col-12">
-                                                    <div class="d-flex align-items-center justify-content-between">
-                                                        <small class="text-muted">
-                                                            <i class="fas fa-camera me-1"></i>
-                                                            Tap to take photo or choose from gallery
-                                                        </small>
-                                                        <small class="text-muted">Max 5MB</small>
-                                                    </div>
+                                    
+                                    <!-- Mobile-First Upload Options -->
+                                    <div class="upload-options mb-3">
+                                        <!-- Camera Button -->
+                                        <button type="button" class="btn btn-primary me-2 mb-2" id="cameraBtn">
+                                            <i class="fas fa-camera me-1"></i>Take Photo
+                                        </button>
+                                        <!-- Gallery Button -->
+                                        <button type="button" class="btn btn-outline-primary mb-2" id="galleryBtn">
+                                            <i class="fas fa-images me-1"></i>Choose from Gallery
+                                        </button>
+                                        <!-- Debug Button (temporary) -->
+                                        <button type="button" class="btn btn-outline-info mb-2 ms-2" id="debugBtn">
+                                            <i class="fas fa-bug me-1"></i>Test Upload
+                                        </button>
+                                    </div>
+
+                                    <!-- Hidden File Inputs -->
+                                    <input type="file" 
+                                           id="cameraInput" 
+                                           accept="image/*" 
+                                           capture="environment" 
+                                           style="display: none;">
+                                    <input type="file" 
+                                           id="galleryInput" 
+                                           name="receipt_image"
+                                           accept="image/*" 
+                                           style="display: none;">
+                                    
+                                    <!-- Preview Area -->
+                                    <div id="previewArea" class="d-none">
+                                        <div class="card">
+                                            <div class="card-body text-center">
+                                                <img id="imagePreview" src="" alt="Preview" class="img-fluid mb-2" style="max-height: 200px;">
+                                                <div>
+                                                    <span id="fileName" class="text-muted d-block mb-2"></span>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger" id="removeImage">
+                                                        <i class="fas fa-trash"></i> Remove
+                                                    </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
+
+                                    <div class="upload-help mt-2">
+                                        <small class="text-muted">
+                                            <i class="fas fa-info-circle me-1"></i>
+                                            Max 5MB • JPEG, PNG, WebP supported
+                                        </small>
+                                    </div>
+                                    
                                     @error('receipt_image')
                                         <div class="alert alert-danger mt-2">
                                             <i class="fas fa-exclamation-triangle me-2"></i>{{ $message }}
@@ -376,6 +406,114 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Initialize character count
     descriptionCount.textContent = descriptionTextarea.value.length;
+    
+    // Mobile-First Upload Handler
+    const cameraBtn = document.getElementById('cameraBtn');
+    const galleryBtn = document.getElementById('galleryBtn');
+    const cameraInput = document.getElementById('cameraInput');
+    const galleryInput = document.getElementById('galleryInput');
+    const previewArea = document.getElementById('previewArea');
+    const imagePreview = document.getElementById('imagePreview');
+    const fileName = document.getElementById('fileName');
+    const removeImage = document.getElementById('removeImage');
+    
+    // Handle camera button click
+    cameraBtn.addEventListener('click', function() {
+        cameraInput.click();
+    });
+    
+    // Handle gallery button click
+    galleryBtn.addEventListener('click', function() {
+        galleryInput.click();
+    });
+    
+    // Handle file selection from either camera or gallery
+    function handleFileSelect(file, source) {
+        if (!file) return;
+        
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(file.type)) {
+            alert('Please select a valid image file (JPEG, PNG, WebP)');
+            return;
+        }
+        
+        // Validate file size (5MB)
+        const maxSize = 5 * 1024 * 1024;
+        if (file.size > maxSize) {
+            alert('File size must be less than 5MB');
+            return;
+        }
+        
+        // Copy file to the form input that will be submitted
+        if (source === 'camera') {
+            // Transfer file from camera input to gallery input for form submission
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            galleryInput.files = dt.files;
+        }
+        
+        // Show preview
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            imagePreview.src = e.target.result;
+            fileName.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)';
+            previewArea.classList.remove('d-none');
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    // Camera input change
+    cameraInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0], 'camera');
+        }
+    });
+    
+    // Gallery input change
+    galleryInput.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            handleFileSelect(e.target.files[0], 'gallery');
+        }
+    });
+    
+    // Remove image
+    removeImage.addEventListener('click', function() {
+        cameraInput.value = '';
+        galleryInput.value = '';
+        previewArea.classList.add('d-none');
+        imagePreview.src = '';
+        fileName.textContent = '';
+    });
+    
+    // Debug button (temporary)
+    document.getElementById('debugBtn').addEventListener('click', function() {
+        if (galleryInput.files.length === 0) {
+            alert('Please select a file first');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('receipt_image', galleryInput.files[0]);
+        formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+        
+        fetch('/expenses/debug-upload', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Debug upload response:', data);
+            alert('Debug info logged to console. Check browser developer tools.');
+        })
+        .catch(error => {
+            console.error('Debug upload error:', error);
+            alert('Debug upload failed: ' + error.message);
+        });
+    });
 });
 </script>
 

@@ -94,10 +94,28 @@ class ExpenseController extends Controller
             'created_by' => Auth::id(),
         ]));
 
-        // Handle receipt upload with Spatie Media Library
+        // Handle receipt upload - simple and reliable approach
         if ($request->hasFile('receipt_image')) {
-            $expense->addMediaFromRequest('receipt_image')
-                ->toMediaCollection('receipts');
+            $file = $request->file('receipt_image');
+            
+            // Basic validation
+            if ($file->isValid()) {
+                // Create receipts directory if it doesn't exist
+                $receiptsPath = storage_path('app/public/receipts');
+                if (!is_dir($receiptsPath)) {
+                    mkdir($receiptsPath, 0755, true);
+                }
+                
+                // Generate unique filename
+                $fileName = 'receipt_' . time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
+                
+                // Store the file
+                $receiptPath = $file->storeAs('receipts', $fileName, 'public');
+                
+                if ($receiptPath) {
+                    $expense->update(['receipt_image' => $receiptPath]);
+                }
+            }
         }
 
         $message = $approvalStatus === 'Pending' 
@@ -142,18 +160,41 @@ class ExpenseController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
 
-        // Remove receipt_image from validated data since we handle it separately
-        unset($validated['receipt_image']);
+        // Handle receipt upload - simple and reliable approach
+        if ($request->hasFile('receipt_image')) {
+            $file = $request->file('receipt_image');
+            
+            // Basic validation
+            if ($file->isValid()) {
+                // Delete old receipt if exists
+                if ($expense->receipt_image && Storage::disk('public')->exists($expense->receipt_image)) {
+                    Storage::disk('public')->delete($expense->receipt_image);
+                }
+                
+                // Create receipts directory if it doesn't exist
+                $receiptsPath = storage_path('app/public/receipts');
+                if (!is_dir($receiptsPath)) {
+                    mkdir($receiptsPath, 0755, true);
+                }
+                
+                // Generate unique filename
+                $fileName = 'receipt_' . time() . '_' . uniqid() . '.' . strtolower($file->getClientOriginalExtension());
+                
+                // Store the file
+                $receiptPath = $file->storeAs('receipts', $fileName, 'public');
+                
+                if ($receiptPath) {
+                    $validated['receipt_image'] = $receiptPath;
+                }
+            }
+        }
+
+        // Remove receipt_image from validated data if no file was uploaded
+        if (!$request->hasFile('receipt_image')) {
+            unset($validated['receipt_image']);
+        }
 
         $expense->update($validated);
-
-        // Handle receipt upload with Spatie Media Library
-        if ($request->hasFile('receipt_image')) {
-            // Clear existing media and add new one
-            $expense->clearMediaCollection('receipts');
-            $expense->addMediaFromRequest('receipt_image')
-                ->toMediaCollection('receipts');
-        }
 
         return redirect()->route('expenses.index')->with([
             'message' => 'Expense updated successfully',
@@ -181,28 +222,23 @@ class ExpenseController extends Controller
 
     public function serveReceipt(Expense $expense)
     {
-        $media = $expense->getFirstMedia('receipts');
-        
-        if (!$media) {
-            // Fallback for old receipt_image column (backward compatibility)
-            if (!$expense->receipt_image || !Storage::disk('public')->exists($expense->receipt_image)) {
-                abort(404, 'Receipt not found');
-            }
-            
-            // Serve old-style receipt
-            $filePath = Storage::disk('public')->path($expense->receipt_image);
-            $mimeType = Storage::disk('public')->mimeType($expense->receipt_image);
-            
-            return response()->file($filePath, [
-                'Content-Type' => $mimeType,
-                'Cache-Control' => 'public, max-age=31536000',
-                'Expires' => gmdate('D, d M Y H:i:s \G\M\T', time() + 31536000),
-            ]);
+        // Check if user has permission to view expense
+        if (!$expense->receipt_image) {
+            abort(404, 'Receipt not found');
         }
 
-        // Serve media library file
-        return response()->file($media->getPath(), [
-            'Content-Type' => $media->mime_type,
+        // Check if file exists
+        if (!Storage::disk('public')->exists($expense->receipt_image)) {
+            abort(404, 'Receipt file not found');
+        }
+
+        // Get file path and info
+        $filePath = Storage::disk('public')->path($expense->receipt_image);
+        $mimeType = Storage::disk('public')->mimeType($expense->receipt_image);
+        
+        // Serve file with proper headers
+        return response()->file($filePath, [
+            'Content-Type' => $mimeType,
             'Cache-Control' => 'public, max-age=31536000',
             'Expires' => gmdate('D, d M Y H:i:s \G\M\T', time() + 31536000),
         ]);
