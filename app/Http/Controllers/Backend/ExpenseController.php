@@ -229,6 +229,41 @@ class ExpenseController extends Controller
         ]);
     }
 
+    public function uploadReceipt(Request $request)
+    {
+        $request->validate([
+            'receipt_image' => 'required|image|mimes:jpeg,png,jpg,webp|max:2048|dimensions:max_width=4000,max_height=4000',
+        ]);
+
+        if ($request->hasFile('receipt_image')) {
+            $file = $request->file('receipt_image');
+            
+            if ($file->isValid()) {
+                // Additional security checks
+                $allowedMimes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+                if (!in_array($file->getMimeType(), $allowedMimes)) {
+                    return response()->json(['error' => 'Invalid file type'], 400);
+                }
+                
+                // Generate secure filename
+                $extension = $file->getClientOriginalExtension();
+                $fileName = 'temp_receipt_' . time() . '_' . bin2hex(random_bytes(8)) . '.' . strtolower($extension);
+                
+                // Store in temporary location
+                $filePath = $file->storeAs('receipts/temp', $fileName, 'public');
+                
+                return response()->json([
+                    'success' => true,
+                    'tempId' => $fileName,
+                    'path' => $filePath,
+                    'url' => asset('storage/' . $filePath)
+                ]);
+            }
+        }
+
+        return response()->json(['error' => 'Upload failed'], 400);
+    }
+
     public function quickAdd(Request $request)
     {
         $validated = $request->validate([
