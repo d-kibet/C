@@ -220,6 +220,8 @@ Route::controller(App\Http\Controllers\Backend\NotificationController::class)->m
 Route::controller(App\Http\Controllers\Backend\ExpenseController::class)->middleware(['auth'])->group(function(){
     Route::get('/expenses', 'index')->name('expenses.index')->middleware('permission:mpesa.all');
     Route::get('/expenses/create', 'create')->name('expenses.create')->middleware('permission:mpesa.add');
+    Route::get('/expenses/create-new', 'createNew')->name('expenses.create.new');
+    Route::post('/expenses/store-new', 'storeNew')->name('expenses.store.new');
     Route::post('/expenses', 'store')->name('expenses.store');
     Route::get('/expenses/{expense}', 'show')->name('expenses.show');
     Route::get('/expenses/{expense}/edit', 'edit')->name('expenses.edit');

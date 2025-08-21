@@ -228,12 +228,9 @@
                                         <button type="button" class="btn btn-outline-primary mb-2" id="galleryBtn">
                                             <i class="fas fa-images me-1"></i>Choose from Gallery
                                         </button>
-                                        <!-- Debug Buttons (temporary) -->
-                                        <button type="button" class="btn btn-outline-info mb-2 ms-2" id="debugBtn">
-                                            <i class="fas fa-bug me-1"></i>Test Upload
-                                        </button>
-                                        <button type="button" class="btn btn-outline-warning mb-2 ms-1" id="testPostBtn">
-                                            <i class="fas fa-flask me-1"></i>Test POST
+                                        <!-- Debug Button (temporary) -->
+                                        <button type="button" class="btn btn-outline-success mb-2 ms-2" id="quickTestBtn">
+                                            <i class="fas fa-check me-1"></i>Quick Test
                                         </button>
                                     </div>
 
@@ -534,60 +531,26 @@ document.addEventListener('DOMContentLoaded', function() {
         fileName.textContent = '';
     });
     
-    // Debug button (temporary)
-    document.getElementById('debugBtn').addEventListener('click', function() {
-        if (galleryInput.files.length === 0) {
-            alert('Please select a file first');
-            return;
+    // Quick test button - test form submission without full validation
+    document.getElementById('quickTestBtn').addEventListener('click', function() {
+        // Fill required fields with test data
+        document.getElementById('category_id').value = document.querySelector('#category_id option:nth-child(2)')?.value || '';
+        document.getElementById('vendor_name').value = 'Test Vendor';
+        document.getElementById('description').value = 'Test expense description';
+        document.getElementById('amount').value = '100.00';
+        document.getElementById('expense_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('payment_method').value = 'Cash';
+        
+        // Check if form is ready
+        if (document.getElementById('category_id').value && 
+            document.getElementById('vendor_name').value &&
+            document.getElementById('description').value &&
+            document.getElementById('amount').value) {
+            
+            alert('Test data filled! You can now submit the form to test.');
+        } else {
+            alert('Could not fill all required fields. Please fill manually and submit.');
         }
-        
-        const formData = new FormData();
-        formData.append('receipt_image', galleryInput.files[0]);
-        formData.append('_token', document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
-        
-        fetch('/expenses/debug-upload', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Debug upload response:', data);
-            alert('Debug info logged to console. Check browser developer tools.');
-        })
-        .catch(error => {
-            console.error('Debug upload error:', error);
-            alert('Debug upload failed: ' + error.message);
-        });
-    });
-    
-    // Test POST button (temporary)
-    document.getElementById('testPostBtn').addEventListener('click', function() {
-        fetch('/expenses/test-post', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-            },
-            body: JSON.stringify({
-                test: 'data'
-            })
-        })
-        .then(response => {
-            console.log('POST test response status:', response.status);
-            return response.json();
-        })
-        .then(data => {
-            console.log('POST test response data:', data);
-            alert('POST test successful! Check console for details.');
-        })
-        .catch(error => {
-            console.error('POST test error:', error);
-            alert('POST test failed: ' + error.message);
-        });
     });
 });
 </script>

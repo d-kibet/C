@@ -64,6 +64,63 @@ class ExpenseController extends Controller
         return view('backend.expenses.create', compact('categories', 'recentVendors'));
     }
 
+    public function createNew()
+    {
+        $categories = ExpenseCategory::active()->ordered()->get();
+        return view('backend.expenses.create_new', compact('categories'));
+    }
+
+    public function storeNew(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|exists:expense_categories,id',
+            'vendor_name' => 'required|string|max:200',
+            'description' => 'required|string|max:500',
+            'amount' => 'required|numeric|min:0.01|max:999999.99',
+            'expense_date' => 'required|date|before_or_equal:today',
+            'payment_method' => 'required|in:Cash,M-Pesa,Bank Transfer,Cheque',
+            'transaction_reference' => 'nullable|string|max:100',
+            'receipt_image' => 'nullable|image|max:5120',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $category = ExpenseCategory::findOrFail($validated['category_id']);
+
+        // Determine approval status
+        $approvalStatus = 'Approved';
+        if ($category->requires_approval && $validated['amount'] > 5000) {
+            $approvalStatus = 'Pending';
+        }
+
+        // Handle receipt upload - SIMPLE approach
+        $receiptPath = null;
+        if ($request->hasFile('receipt_image')) {
+            $file = $request->file('receipt_image');
+            
+            if ($file->isValid()) {
+                $receiptPath = $file->store('receipts', 'public');
+            }
+        }
+
+        // Remove receipt_image from validated array and handle separately
+        unset($validated['receipt_image']);
+
+        $expense = Expense::create(array_merge($validated, [
+            'receipt_image' => $receiptPath,
+            'approval_status' => $approvalStatus,
+            'created_by' => Auth::id(),
+        ]));
+
+        $message = $approvalStatus === 'Pending' 
+                 ? 'Expense recorded and sent for approval' 
+                 : 'Expense recorded successfully';
+
+        return redirect()->route('expenses.index')->with([
+            'message' => $message,
+            'alert-type' => 'success'
+        ]);
+    }
+
     public function store(Request $request)
     {
         // Debug logging
