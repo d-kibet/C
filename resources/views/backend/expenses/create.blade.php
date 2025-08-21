@@ -212,7 +212,7 @@
                                     @enderror
                                 </div>
 
-                                <!-- Receipt Upload with Filepond -->
+                                <!-- Receipt Upload -->
                                 <div class="col-md-6">
                                     <label for="receipt_image" class="form-label">
                                         <i class="fas fa-camera me-1"></i>Receipt Photo
@@ -224,7 +224,7 @@
                                            accept="image/*">
                                     <div class="form-text">
                                         <i class="fas fa-info-circle me-1"></i>
-                                        📱 Take a photo or drag & drop • Max 2MB • JPEG, PNG, WebP
+                                        Take a photo or drag & drop • Max 2MB • JPEG, PNG, WebP
                                     </div>
                                     @error('receipt_image')
                                         <div class="alert alert-danger mt-2">
@@ -372,7 +372,6 @@ FilePond.registerPlugin(
     FilePondPluginImageCrop,
     FilePondPluginImageResize,
     FilePondPluginImageTransform,
-    FilePondPluginImageEdit,
     FilePondPluginFileValidateType,
     FilePondPluginFileValidateSize
 );
@@ -384,7 +383,7 @@ if (receiptInput) {
         labelIdle: `
             <div class="filepond-drop-area">
                 <i class="fas fa-camera fa-3x text-primary mb-2"></i>
-                <h5>📱 Take Photo or Drop Image</h5>
+                <h5>Take Photo or Drop Image</h5>
                 <p class="text-muted">Tap to take a photo with your camera<br>or drag & drop an image file</p>
             </div>
         `,
@@ -396,34 +395,24 @@ if (receiptInput) {
         allowImageCrop: true,
         allowImageResize: true,
         allowImageTransform: true,
-        allowImageEdit: true,
         imageCropAspectRatio: null,
         imageResizeTargetWidth: 1200,
         imageResizeTargetHeight: 1200,
         imageResizeMode: 'cover',
         imageResizeUpscale: false,
         credits: false,
+        instantUpload: false,
         
         // Custom styling
         stylePanelLayout: 'compact circle',
         styleLoadIndicatorPosition: 'center bottom',
         styleProgressIndicatorPosition: 'right bottom',
         styleButtonRemoveItemPosition: 'left bottom',
-        styleButtonProcessItemPosition: 'right bottom',
-        
-        // Simplified: No server processing, just local preview
-        instantUpload: false,
         
         // Event handlers
         onaddfile: (error, file) => {
             if (!error) {
                 console.log('File added:', file.filename);
-            }
-        },
-        
-        onprocessfile: (error, file) => {
-            if (!error) {
-                console.log('File processed:', file.filename);
             }
         },
         
@@ -448,7 +437,6 @@ if (receiptInput) {
 <!-- Filepond CSS -->
 <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet">
 <link href="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css" rel="stylesheet">
-<link href="https://unpkg.com/filepond-plugin-image-edit/dist/filepond-plugin-image-edit.css" rel="stylesheet">
 
 <!-- Filepond JavaScript -->
 <script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
@@ -456,7 +444,6 @@ if (receiptInput) {
 <script src="https://unpkg.com/filepond-plugin-image-crop/dist/filepond-plugin-image-crop.js"></script>
 <script src="https://unpkg.com/filepond-plugin-image-resize/dist/filepond-plugin-image-resize.js"></script>
 <script src="https://unpkg.com/filepond-plugin-image-transform/dist/filepond-plugin-image-transform.js"></script>
-<script src="https://unpkg.com/filepond-plugin-image-edit/dist/filepond-plugin-image-edit.js"></script>
 <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js"></script>
 <script src="https://unpkg.com/filepond-plugin-file-validate-size/dist/filepond-plugin-file-validate-size.js"></script>
 

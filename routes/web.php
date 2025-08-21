@@ -221,7 +221,6 @@ Route::controller(App\Http\Controllers\Backend\ExpenseController::class)->middle
     Route::get('/expenses', 'index')->name('expenses.index')->middleware('permission:mpesa.all');
     Route::get('/expenses/create', 'create')->name('expenses.create')->middleware('permission:mpesa.add');
     Route::post('/expenses', 'store')->name('expenses.store');
-    Route::post('/expenses/upload-receipt', 'uploadReceipt')->name('expenses.upload-receipt');
     Route::get('/expenses/{expense}', 'show')->name('expenses.show');
     Route::get('/expenses/{expense}/edit', 'edit')->name('expenses.edit');
     Route::put('/expenses/{expense}', 'update')->name('expenses.update');

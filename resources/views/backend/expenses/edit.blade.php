@@ -201,7 +201,7 @@
                                            accept="image/*">
                                     <div class="form-text">
                                         <i class="fas fa-info-circle me-1"></i>
-                                        📱 {{ $expense->receipt_image ? 'Take new photo to replace current receipt' : 'Take a photo or drag & drop' }} • Max 2MB • JPEG, PNG, WebP
+                                        {{ $expense->receipt_image ? 'Take new photo to replace current receipt' : 'Take a photo or drag & drop' }} • Max 2MB • JPEG, PNG, WebP
                                     </div>
                                     @error('receipt_image')
                                         <div class="alert alert-danger mt-2">
@@ -284,7 +284,6 @@ document.addEventListener('DOMContentLoaded', function() {
         FilePondPluginImageCrop,
         FilePondPluginImageResize,
         FilePondPluginImageTransform,
-        FilePondPluginImageEdit,
         FilePondPluginFileValidateType,
         FilePondPluginFileValidateSize
     );
@@ -295,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function() {
             labelIdle: `
                 <div class="filepond-drop-area">
                     <i class="fas fa-camera fa-3x text-primary mb-2"></i>
-                    <h5>📱 Take New Photo or Drop Image</h5>
+                    <h5>Take New Photo or Drop Image</h5>
                     <p class="text-muted">Replace current receipt with a new photo<br>or drag & drop an image file</p>
                 </div>
             `,
@@ -307,7 +306,6 @@ document.addEventListener('DOMContentLoaded', function() {
             allowImageCrop: true,
             allowImageResize: true,
             allowImageTransform: true,
-            allowImageEdit: true,
             imageCropAspectRatio: null,
             imageResizeTargetWidth: 1200,
             imageResizeTargetHeight: 1200,
@@ -347,7 +345,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <!-- Filepond CSS -->
 <link href="https://unpkg.com/filepond@^4/dist/filepond.css" rel="stylesheet">
 <link href="https://unpkg.com/filepond-plugin-image-preview/dist/filepond-plugin-image-preview.css" rel="stylesheet">
-<link href="https://unpkg.com/filepond-plugin-image-edit/dist/filepond-plugin-image-edit.css" rel="stylesheet">
 
 <!-- Filepond JavaScript -->
 <script src="https://unpkg.com/filepond@^4/dist/filepond.js"></script>
@@ -355,7 +352,6 @@ document.addEventListener('DOMContentLoaded', function() {
 <script src="https://unpkg.com/filepond-plugin-image-crop/dist/filepond-plugin-image-crop.js"></script>
 <script src="https://unpkg.com/filepond-plugin-image-resize/dist/filepond-plugin-image-resize.js"></script>
 <script src="https://unpkg.com/filepond-plugin-image-transform/dist/filepond-plugin-image-transform.js"></script>
-<script src="https://unpkg.com/filepond-plugin-image-edit/dist/filepond-plugin-image-edit.js"></script>
 <script src="https://unpkg.com/filepond-plugin-file-validate-type/dist/filepond-plugin-file-validate-type.js"></script>
 <script src="https://unpkg.com/filepond-plugin-file-validate-size/dist/filepond-plugin-file-validate-size.js"></script>
 
