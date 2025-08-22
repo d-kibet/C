@@ -269,10 +269,7 @@ class ExpenseController extends Controller
 
     public function destroy(Expense $expense)
     {
-        // Clear all media (this will automatically delete files)
-        $expense->clearMediaCollection('receipts');
-        
-        // Delete old receipt file if it exists (for backward compatibility)
+        // Delete receipt file if it exists
         if ($expense->receipt_image && Storage::disk('public')->exists($expense->receipt_image)) {
             Storage::disk('public')->delete($expense->receipt_image);
         }
