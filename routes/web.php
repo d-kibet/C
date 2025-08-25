@@ -33,7 +33,7 @@ Route::get('/', function () {
 // })->middleware(['auth', 'verified'])->name('dashboard');
 
 Route::get('/dashboard', [CarpetController::class, 'CarpetDashboard'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth']) // removed 'verified'
     ->name('dashboard');
 
 Route::middleware('auth')->group(function () {
