@@ -106,6 +106,10 @@
                         <li><a href="{{ route('reports.performance') }}">Performance Dashboard</a></li>
                         @endif
 
+                        @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('customer.retention.index') }}">Customer Retention</a></li>
+                        @endif
+
 
                     </ul>
                 </li>

@@ -9,6 +9,7 @@ use App\Http\Controllers\Backend\LaundryController;
 use App\Http\Controllers\Backend\MpesaController;
 use App\Http\Controllers\Backend\RoleController;
 use App\Http\Controllers\Backend\ReportController;
+use App\Http\Controllers\Backend\CustomerRetentionController;
 use App\Http\Controllers\Home\ContactController;
 use App\Http\Controllers\Home\AboutController;
 use App\Http\Controllers\Home\ServiceController;
@@ -113,6 +114,13 @@ Route::controller(ReportController::class)->group(function(){
     Route::post('reports/performance-data','performanceData')->name('reports.performance.data');
 
     });
+
+// Customer Retention Routes
+Route::controller(CustomerRetentionController::class)->middleware(['auth'])->group(function(){
+    Route::get('/customer-retention', 'index')->name('customer.retention.index')->middleware('permission:mpesa.compare');
+    Route::get('/customer-retention/export', 'export')->name('customer.retention.export')->middleware('permission:mpesa.compare');
+    Route::post('/customer-retention/follow-up', 'generateFollowUpList')->name('customer.retention.followup')->middleware('permission:mpesa.compare');
+});
 
     // Contact All Route
 Route::controller(ContactController::class)->group(function () {
