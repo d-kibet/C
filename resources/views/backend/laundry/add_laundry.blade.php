@@ -93,6 +93,17 @@
                                         </div>
                                     </div>
 
+                                    <!-- Date Delivered -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Date Delivered</label>
+                                            <input type="date" name="date_delivered" class="form-control @error('date_delivered') is-invalid @enderror">
+                                            @error('date_delivered')
+                                                <span class="text-danger"> {{ $message }} </span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
                                     <!-- Quantity -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -196,16 +207,5 @@
     </div> <!-- container -->
 </div> <!-- content -->
 
-<script type="text/javascript">
-    $(document).ready(function(){
-        $('#image').change(function(e){
-            var reader = new FileReader();
-            reader.onload =  function(e){
-                $('#showImage').attr('src', e.target.result);
-            }
-            reader.readAsDataURL(e.target.files['0']);
-        });
-    });
-</script>
 
 @endsection
