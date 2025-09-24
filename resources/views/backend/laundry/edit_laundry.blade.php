@@ -102,7 +102,15 @@
         </div>
     </div>
 
-
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label for="firstname" class="form-label">Date Delivered   </label>
+            <input type="date" name="date_delivered" class="form-control @error('date_delivered') is-invalid @enderror" value="{{ $laundry->date_delivered }}"  >
+             @error('date_delivered')
+      <span class="text-danger"> {{ $message }} </span>
+            @enderror
+        </div>
+    </div>
 
     <div class="col-md-6">
         <div class="mb-3">
