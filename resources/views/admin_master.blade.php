@@ -224,7 +224,12 @@
         const badge = document.getElementById('notificationBadge');
         const pulse = document.getElementById('notificationPulse');
         const bell = document.getElementById('notificationDropdown');
-        
+
+        // Safety check: ensure all elements exist before accessing them
+        if (!badge || !pulse || !bell) {
+            return;
+        }
+
         if (count > 0) {
             // Show badge and pulse
             badge.style.display = 'flex';
@@ -270,7 +275,12 @@
 
     function updateNotificationList(notifications) {
         const list = document.getElementById('notificationList');
-        
+
+        // Safety check: ensure element exists
+        if (!list) {
+            return;
+        }
+
         if (notifications.length === 0) {
             list.innerHTML = `
                 <div class="text-center p-4">
