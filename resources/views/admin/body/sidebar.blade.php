@@ -140,6 +140,7 @@
                 @endif
 
                 <!-- SMS Management -->
+                @if(Auth::user()->can('mpesa.compare'))
                 <li>
                     <a href="javascript: void(0);" data-bs-toggle="collapse">
                         <i class="ri-message-2-line"></i>
@@ -167,6 +168,7 @@
                         </a></li>
                     </ul>
                 </li>
+                @endif
 
                 <!-- System Management -->
                 <li>
