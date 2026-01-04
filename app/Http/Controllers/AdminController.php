@@ -272,14 +272,36 @@ public function UpdateAdmin(Request $request)
 public function DeleteAdmin($id){
 
     $user = User::findOrFail($id);
-    if (!is_null($user)) {
-        $user->delete();
+
+    // Prevent deleting yourself
+    if ($user->id === Auth::id()) {
+        $notification = array(
+            'message' => 'You cannot delete your own account while logged in.',
+            'alert-type' => 'error'
+        );
+        return redirect()->back()->with($notification);
     }
 
-    $notification = array(
-        'message' => 'Admin User Deleted Successfully',
-        'alert-type' => 'success'
-    );
+    try {
+        // When user is deleted, foreign key constraints will automatically:
+        // - Set expenses.created_by to NULL (via onDelete('set null'))
+        // - Set expenses.approved_by to NULL (via onDelete('set null'))
+        // - Set sms_logs.user_id to NULL (via onDelete('set null'))
+        // - Delete scheduled_sms records (via onDelete('cascade'))
+        // - Keep audit_trails records (user_id is not a foreign key)
+
+        $user->delete();
+
+        $notification = array(
+            'message' => 'Admin User Deleted Successfully',
+            'alert-type' => 'success'
+        );
+    } catch (\Exception $e) {
+        $notification = array(
+            'message' => 'Error deleting admin user: ' . $e->getMessage(),
+            'alert-type' => 'error'
+        );
+    }
 
     return redirect()->back()->with($notification);
 
