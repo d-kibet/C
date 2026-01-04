@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
+use Illuminate\Support\Facades\Log;
 
 class NotificationController extends Controller
 {
@@ -79,7 +80,7 @@ class NotificationController extends Controller
                 })
             ]);
         } catch (\Exception $e) {
-            \Log::error('Error loading notifications: ' . $e->getMessage(), [
+            Log::error('Error loading notifications: ' . $e->getMessage(), [
                 'user_id' => auth()->id(),
                 'trace' => $e->getTraceAsString()
             ]);
@@ -157,7 +158,7 @@ class NotificationController extends Controller
             $data = $notification->data;
             $serviceType = $data['service_type'];
             $serviceId = $data['service_id'];
-            
+
             if ($serviceType === 'carpet') {
                 $service = \App\Models\Carpet::find($serviceId);
                 if ($service) {

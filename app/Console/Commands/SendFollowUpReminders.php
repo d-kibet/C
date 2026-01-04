@@ -17,17 +17,28 @@ class SendFollowUpReminders extends Command
     {
         $today = Carbon::today()->toDateString();
 
+        // Get all admin users (since role system has specific roles, use all users)
+        // TODO: Update to use specific roles when 'carpet_staff' and 'laundry_staff' roles are created
+        $allStaff = User::all();
+
+        if ($allStaff->isEmpty()) {
+            $this->warn('No users found to send follow-up reminders');
+            return;
+        }
+
         // CARPET
         $carpets = Carpet::where('follow_up_due_at', $today)
                          ->where('payment_status','Not Paid')
                          ->whereNull('resolved_at')
                          ->get();
-        $staffCarpet = User::role('carpet_staff')->get();
+
+        $carpetCount = 0;
         foreach ($carpets as $c) {
-            foreach ($staffCarpet as $u) {
+            foreach ($allStaff as $u) {
                 $u->notify(new FollowUpReminder($c,'carpet'));
             }
             $this->advanceStage($c);
+            $carpetCount++;
         }
 
         // LAUNDRY
@@ -35,15 +46,20 @@ class SendFollowUpReminders extends Command
                           ->where('payment_status','Not Paid')
                           ->whereNull('resolved_at')
                           ->get();
-        $staffLaundry = User::role('laundry_staff')->get();
+
+        $laundryCount = 0;
         foreach ($laundry as $l) {
-            foreach ($staffLaundry as $u) {
+            foreach ($allStaff as $u) {
                 $u->notify(new FollowUpReminder($l,'laundry'));
             }
             $this->advanceStage($l);
+            $laundryCount++;
         }
 
-        $this->info("Reminders sent: Carpet to {$staffCarpet->count()} users, Laundry to {$staffLaundry->count()} users.");
+        $this->info("Follow-up reminders sent:");
+        $this->info("  Carpets: {$carpetCount} items to {$allStaff->count()} users");
+        $this->info("  Laundry: {$laundryCount} items to {$allStaff->count()} users");
+        $this->info("  Total notifications: " . (($carpetCount + $laundryCount) * $allStaff->count()));
     }
 
     protected function advanceStage($rec)

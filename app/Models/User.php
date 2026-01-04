@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -75,4 +76,32 @@ class User extends Authenticatable // implements MustVerifyEmail
             return $hasPermission;
         }
     }// End Method
+
+    /**
+     * Get the user's notification preferences
+     */
+    public function notificationPreferences(): HasOne
+    {
+        return $this->hasOne(NotificationPreference::class);
+    }
+
+    /**
+     * Get or create notification preferences
+     */
+    public function getNotificationPreferences(): NotificationPreference
+    {
+        if (!$this->notificationPreferences) {
+            return NotificationPreference::createDefaults($this);
+        }
+
+        return $this->notificationPreferences;
+    }
+
+    /**
+     * Route notification for SMS channel (uses phone number)
+     */
+    public function routeNotificationForSms()
+    {
+        return $this->phone;
+    }
 }

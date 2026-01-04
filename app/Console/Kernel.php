@@ -17,8 +17,8 @@ class Kernel extends ConsoleKernel
         ->withoutOverlapping()
         ->runInBackground();
 
-        // Use optimized version for better performance with large databases
-        $schedule->command('deliveries:check-overdue-optimized --batch-size=200 --max-notifications=1000')
+        // Use V2 smart version with consolidation, auto-cleanup, and deduplication
+        $schedule->command('deliveries:check-overdue-v2 --batch-size=200 --max-notifications=1000')
         ->dailyAt('09:00')
         ->withoutOverlapping()
         ->runInBackground()
@@ -28,6 +28,12 @@ class Kernel extends ConsoleKernel
         // Cleanup old notifications weekly to keep database lean
         $schedule->command('notifications:cleanup --days=30 --keep-unread=60')
         ->weeklyOn(1, '02:00') // Monday at 2 AM
+        ->withoutOverlapping()
+        ->runInBackground();
+
+        // Start queue worker (if using database queue)
+        $schedule->command('queue:work --stop-when-empty --tries=3 --timeout=60')
+        ->everyMinute()
         ->withoutOverlapping()
         ->runInBackground();
     }
