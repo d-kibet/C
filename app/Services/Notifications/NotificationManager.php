@@ -137,26 +137,34 @@ class NotificationManager
         ];
 
         // Cleanup carpet notifications
-        $deliveredCarpetIds = Carpet::where('delivered', 'Delivered')->pluck('id');
+        $deliveredCarpetIds = Carpet::where('delivered', 'Delivered')->pluck('id')->toArray();
 
-        if ($deliveredCarpetIds->isNotEmpty()) {
+        if (!empty($deliveredCarpetIds)) {
             $deleted = DB::table('notifications')
                 ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
                 ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'carpet'")
-                ->whereIn(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"), $deliveredCarpetIds)
+                ->where(function($query) use ($deliveredCarpetIds) {
+                    foreach ($deliveredCarpetIds as $carpetId) {
+                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$carpetId]);
+                    }
+                })
                 ->delete();
 
             $stats['carpet'] = $deleted;
         }
 
         // Cleanup laundry notifications
-        $deliveredLaundryIds = Laundry::where('delivered', 'Delivered')->pluck('id');
+        $deliveredLaundryIds = Laundry::where('delivered', 'Delivered')->pluck('id')->toArray();
 
-        if ($deliveredLaundryIds->isNotEmpty()) {
+        if (!empty($deliveredLaundryIds)) {
             $deleted = DB::table('notifications')
                 ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
                 ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'laundry'")
-                ->whereIn(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"), $deliveredLaundryIds)
+                ->where(function($query) use ($deliveredLaundryIds) {
+                    foreach ($deliveredLaundryIds as $laundryId) {
+                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$laundryId]);
+                    }
+                })
                 ->delete();
 
             $stats['laundry'] = $deleted;
@@ -223,12 +231,14 @@ class NotificationManager
     {
         $stats = ['carpet' => 0, 'laundry' => 0];
 
-        // Get carpet notification IDs
+        // Get carpet notification IDs using select with alias, then pluck
         $carpetNotificationIds = DB::table('notifications')
+            ->select(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) as service_id"))
             ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
             ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'carpet'")
-            ->pluck(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"))
+            ->pluck('service_id')
             ->unique()
+            ->filter() // Remove nulls
             ->toArray();
 
         $existingCarpetIds = Carpet::pluck('id')->toArray();
@@ -238,7 +248,11 @@ class NotificationManager
             $deleted = DB::table('notifications')
                 ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
                 ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'carpet'")
-                ->whereIn(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"), $orphanedCarpetIds)
+                ->where(function($query) use ($orphanedCarpetIds) {
+                    foreach ($orphanedCarpetIds as $orphanedId) {
+                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$orphanedId]);
+                    }
+                })
                 ->delete();
 
             $stats['carpet'] = $deleted;
@@ -246,10 +260,12 @@ class NotificationManager
 
         // Same for laundry
         $laundryNotificationIds = DB::table('notifications')
+            ->select(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) as service_id"))
             ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
             ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'laundry'")
-            ->pluck(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"))
+            ->pluck('service_id')
             ->unique()
+            ->filter() // Remove nulls
             ->toArray();
 
         $existingLaundryIds = Laundry::pluck('id')->toArray();
@@ -259,7 +275,11 @@ class NotificationManager
             $deleted = DB::table('notifications')
                 ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
                 ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'laundry'")
-                ->whereIn(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"), $orphanedLaundryIds)
+                ->where(function($query) use ($orphanedLaundryIds) {
+                    foreach ($orphanedLaundryIds as $orphanedId) {
+                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$orphanedId]);
+                    }
+                })
                 ->delete();
 
             $stats['laundry'] = $deleted;

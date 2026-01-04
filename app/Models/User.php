@@ -90,11 +90,32 @@ class User extends Authenticatable // implements MustVerifyEmail
      */
     public function getNotificationPreferences(): NotificationPreference
     {
-        if (!$this->notificationPreferences) {
-            return NotificationPreference::createDefaults($this);
+        // Load relationship if not loaded
+        if (!$this->relationLoaded('notificationPreferences')) {
+            $this->load('notificationPreferences');
         }
 
-        return $this->notificationPreferences;
+        // If preferences exist, return them
+        if ($this->notificationPreferences) {
+            return $this->notificationPreferences;
+        }
+
+        // Create default preferences using firstOrCreate to avoid duplicates
+        return NotificationPreference::firstOrCreate(
+            ['user_id' => $this->id],
+            [
+                'email_enabled' => true,
+                'sms_enabled' => true,
+                'database_enabled' => true,
+                'overdue_notifications' => true,
+                'payment_reminders' => true,
+                'pickup_notifications' => true,
+                'followup_reminders' => true,
+                'overdue_notification_interval' => 5,
+                'max_notifications_per_day' => 50,
+                'daily_digest' => false,
+            ]
+        );
     }
 
     /**
