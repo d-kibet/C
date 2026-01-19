@@ -198,6 +198,14 @@ Route::controller(AdminController::class)->group(function(){
     Route::post('/update/admin','UpdateAdmin')->name('admin.update');
     Route::get('/delete/admin/{id}','DeleteAdmin')->name('delete.admin');
 
+    // Suspend/Activate Admin
+    Route::get('/suspend/admin/{id}','SuspendAdmin')->name('suspend.admin')->middleware('can:admin.all');
+    Route::get('/activate/admin/{id}','ActivateAdmin')->name('activate.admin')->middleware('can:admin.all');
+
+    // Change Admin Password (Superadmin only)
+    Route::get('/change/admin/password/{id}','ChangeAdminPassword')->name('change.admin.password')->middleware('can:admin.all');
+    Route::post('/update/admin/password','UpdateAdminPassword')->name('update.admin.password')->middleware('can:admin.all');
+
 
     // Database Backup
     Route::get('/database/backup','DatabaseBackup')->name('database.backup');

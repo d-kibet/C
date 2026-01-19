@@ -307,6 +307,98 @@ public function DeleteAdmin($id){
 
 }// End Method
 
+    /**
+     * Suspend a user (Superadmin only)
+     */
+    public function SuspendAdmin($id){
+        $user = User::findOrFail($id);
+
+        // Prevent suspending yourself
+        if ($user->id === Auth::id()) {
+            $notification = array(
+                'message' => 'You cannot suspend your own account.',
+                'alert-type' => 'error'
+            );
+            return redirect()->back()->with($notification);
+        }
+
+        $user->status = 'suspended';
+        $user->save();
+
+        $notification = array(
+            'message' => 'Admin User Suspended Successfully',
+            'alert-type' => 'success'
+        );
+
+        return redirect()->back()->with($notification);
+    }// End Method
+
+    /**
+     * Activate a suspended user (Superadmin only)
+     */
+    public function ActivateAdmin($id){
+        $user = User::findOrFail($id);
+
+        $user->status = 'active';
+        $user->save();
+
+        $notification = array(
+            'message' => 'Admin User Activated Successfully',
+            'alert-type' => 'success'
+        );
+
+        return redirect()->back()->with($notification);
+    }// End Method
+
+    /**
+     * Show change password form for a specific user (Superadmin only)
+     */
+    public function ChangeAdminPassword($id){
+        $adminuser = User::findOrFail($id);
+
+        // Prevent changing your own password through this route
+        if ($adminuser->id === Auth::id()) {
+            $notification = array(
+                'message' => 'Use the profile settings to change your own password.',
+                'alert-type' => 'info'
+            );
+            return redirect()->back()->with($notification);
+        }
+
+        return view('backend.admin.change_admin_password', compact('adminuser'));
+    }// End Method
+
+    /**
+     * Update user password (Superadmin only)
+     */
+    public function UpdateAdminPassword(Request $request){
+        $validated = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'new_password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = User::findOrFail($validated['user_id']);
+
+        // Prevent changing your own password through this route
+        if ($user->id === Auth::id()) {
+            $notification = array(
+                'message' => 'Use the profile settings to change your own password.',
+                'alert-type' => 'error'
+            );
+            return redirect()->back()->with($notification);
+        }
+
+        $user->password = Hash::make($validated['new_password']);
+        $user->save();
+
+        $notification = array(
+            'message' => 'Admin Password Changed Successfully',
+            'alert-type' => 'success'
+        );
+
+        return redirect()->route('all.admin')->with($notification);
+    }// End Method
+
 
     //////////////// Database Backup Method //////////////////
 

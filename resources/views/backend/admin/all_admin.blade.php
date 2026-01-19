@@ -37,6 +37,7 @@
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Role</th>
+                                    <th>Status</th>
                                     <th>Action</th>
                                 </tr>
                             </thead>
@@ -58,8 +59,34 @@
                                             @endforeach
                                         </td>
                                         <td>
-                                            <a href="{{ route('edit.admin', $item->id) }}" class="btn btn-secondary rounded-pill waves-effect">Edit</a>
-                                            <a href="{{ route('delete.admin', $item->id) }}" class="btn btn-danger rounded-pill waves-effect waves-light" id="delete">Delete</a>
+                                            @if(isset($item->status) && $item->status === 'suspended')
+                                                <span class="badge bg-danger">Suspended</span>
+                                            @else
+                                                <span class="badge bg-success">Active</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            <a href="{{ route('edit.admin', $item->id) }}" class="btn btn-secondary btn-sm rounded-pill waves-effect" title="Edit">Edit</a>
+
+                                            @can('admin.all')
+                                                <!-- Change Password Button -->
+                                                <a href="{{ route('change.admin.password', $item->id) }}" class="btn btn-info btn-sm rounded-pill waves-effect" title="Change Password">
+                                                    <i class="mdi mdi-key"></i>
+                                                </a>
+
+                                                <!-- Suspend/Activate Button -->
+                                                @if(isset($item->status) && $item->status === 'suspended')
+                                                    <a href="{{ route('activate.admin', $item->id) }}" class="btn btn-success btn-sm rounded-pill waves-effect" title="Activate">
+                                                        <i class="mdi mdi-account-check"></i>
+                                                    </a>
+                                                @else
+                                                    <a href="{{ route('suspend.admin', $item->id) }}" class="btn btn-warning btn-sm rounded-pill waves-effect" title="Suspend">
+                                                        <i class="mdi mdi-account-off"></i>
+                                                    </a>
+                                                @endif
+                                            @endcan
+
+                                            <a href="{{ route('delete.admin', $item->id) }}" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete" title="Delete">Delete</a>
                                         </td>
                                     </tr>
                                 @endforeach
