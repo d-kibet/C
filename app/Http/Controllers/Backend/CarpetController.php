@@ -7,6 +7,7 @@ use App\Models\Carpet;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class CarpetController extends Controller
 {
@@ -36,7 +37,7 @@ class CarpetController extends Controller
         // A client is "new" if this is their first carpet service ever
         $todayNewClientCount = Carpet::whereDate('date_received', $today)
             ->whereNotExists(function ($query) use ($today) {
-                $query->select(\DB::raw(1))
+                $query->select(DB::raw(1))
                     ->from('carpets as c2')
                     ->whereColumn('c2.phone', 'carpets.phone')
                     ->where('c2.date_received', '<', $today);
@@ -46,45 +47,45 @@ class CarpetController extends Controller
 
         // Also check laundry for truly new clients across all services
         $todayUniqueNewClients = collect();
-        
+
         // Get carpet clients from today
         $todayCarpetClients = Carpet::whereDate('date_received', $today)
             ->select('phone', 'name', 'date_received')
             ->get();
-            
+
         // Check if they exist in carpet before today OR in laundry before today
         foreach ($todayCarpetClients as $client) {
             $existsInCarpet = Carpet::where('phone', $client->phone)
                 ->where('date_received', '<', $today)
                 ->exists();
-                
+
             $existsInLaundry = \App\Models\Laundry::where('phone', $client->phone)
                 ->where('date_received', '<', $today)
                 ->exists();
-                
+
             if (!$existsInCarpet && !$existsInLaundry) {
                 $todayUniqueNewClients->push($client->phone);
             }
         }
-        
+
         // Get laundry clients from today and check if they're truly new
         $todayLaundryClients = \App\Models\Laundry::whereDate('date_received', $today)
             ->select('phone', 'name', 'date_received')
             ->get();
-            
+
         foreach ($todayLaundryClients as $client) {
             if ($todayUniqueNewClients->contains($client->phone)) {
                 continue; // Already counted from carpet
             }
-            
+
             $existsInCarpet = Carpet::where('phone', $client->phone)
                 ->where('date_received', '<', $today)
                 ->exists();
-                
+
             $existsInLaundry = \App\Models\Laundry::where('phone', $client->phone)
                 ->where('date_received', '<', $today)
                 ->exists();
-                
+
             if (!$existsInCarpet && !$existsInLaundry) {
                 $todayUniqueNewClients->push($client->phone);
             }
@@ -363,27 +364,45 @@ public function downloadCarpetsByMonth(Request $request)
     $totalUnpaid   = $unpaidCarpets->sum('price');
     $grandTotal    = $totalPaid + $totalUnpaid;
 
+    // Check if user has admin.all permission
+    $includePhone = Gate::allows('admin.all');
+
     $filename = "carpets_{$year}_{$month}.csv";
     $headers = [
         'Content-Type'        => 'text/csv',
         'Content-Disposition' => "attachment; filename={$filename}",
     ];
 
-    $callback = function() use ($carpets, $totalPaid, $totalUnpaid, $grandTotal) {
+    $callback = function() use ($carpets, $totalPaid, $totalUnpaid, $grandTotal, $includePhone) {
         $file = fopen('php://output', 'w');
-        // Header row
-        fputcsv($file, ['Unique ID', 'Size', 'Price', 'Payment Status', 'Phone', 'Date Received']);
 
-        // Data rows
+        // Header row - conditionally include Phone
+        if ($includePhone) {
+            fputcsv($file, ['Unique ID', 'Size', 'Price', 'Payment Status', 'Phone', 'Date Received']);
+        } else {
+            fputcsv($file, ['Unique ID', 'Size', 'Price', 'Payment Status', 'Date Received']);
+        }
+
+        // Data rows - conditionally include phone
         foreach ($carpets as $carpet) {
-            fputcsv($file, [
-                $carpet->uniqueid,
-                $carpet->size,
-                $carpet->price,
-                $carpet->payment_status,
-                $carpet->phone,
-                $carpet->date_received,
-            ]);
+            if ($includePhone) {
+                fputcsv($file, [
+                    $carpet->uniqueid,
+                    $carpet->size,
+                    $carpet->price,
+                    $carpet->payment_status,
+                    $carpet->phone,
+                    $carpet->date_received,
+                ]);
+            } else {
+                fputcsv($file, [
+                    $carpet->uniqueid,
+                    $carpet->size,
+                    $carpet->price,
+                    $carpet->payment_status,
+                    $carpet->date_received,
+                ]);
+            }
         }
 
         // Blank line
@@ -420,28 +439,47 @@ public function downloadNewCarpetsByMonth(Request $request)
             ->exists();
     });
 
+    // Check if user has admin.all permission
+    $includePhone = Gate::allows('admin.all');
+
     $filename = "new_clients_{$year}_{$month}.csv";
     $headers = [
         'Content-Type'        => 'text/csv',
         'Content-Disposition' => "attachment; filename={$filename}",
     ];
 
-    $callback = function() use ($newCarpets) {
+    $callback = function() use ($newCarpets, $includePhone) {
         $file = fopen('php://output', 'w');
-        // Header row
-        fputcsv($file, ['Unique ID', 'Phone', 'Name', 'Size', 'Price', 'Payment Status', 'Date Received']);
 
-        // Data rows
+        // Header row - conditionally include Phone
+        if ($includePhone) {
+            fputcsv($file, ['Unique ID', 'Phone', 'Name', 'Size', 'Price', 'Payment Status', 'Date Received']);
+        } else {
+            fputcsv($file, ['Unique ID', 'Name', 'Size', 'Price', 'Payment Status', 'Date Received']);
+        }
+
+        // Data rows - conditionally include phone
         foreach ($newCarpets as $carpet) {
-            fputcsv($file, [
-                $carpet->uniqueid,
-                $carpet->phone,
-                $carpet->name,
-                $carpet->size,
-                $carpet->price,
-                $carpet->payment_status,
-                $carpet->date_received,
-            ]);
+            if ($includePhone) {
+                fputcsv($file, [
+                    $carpet->uniqueid,
+                    $carpet->phone,
+                    $carpet->name,
+                    $carpet->size,
+                    $carpet->price,
+                    $carpet->payment_status,
+                    $carpet->date_received,
+                ]);
+            } else {
+                fputcsv($file, [
+                    $carpet->uniqueid,
+                    $carpet->name,
+                    $carpet->size,
+                    $carpet->price,
+                    $carpet->payment_status,
+                    $carpet->date_received,
+                ]);
+            }
         }
 
         fclose($file);

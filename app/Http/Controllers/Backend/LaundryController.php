@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Laundry;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class LaundryController extends Controller
 {
@@ -207,26 +208,43 @@ public function viewLaundryByMonth(Request $request)
         });
         $grandTotal    = $totalPaid + $totalUnpaid;
 
+        // Check if user has admin.all permission
+        $includePhone = Gate::allows('admin.all');
+
         $filename = "laundry_{$year}_{$month}.csv";
         $headers = [
             'Content-Type'        => 'text/csv',
             'Content-Disposition' => "attachment; filename={$filename}",
         ];
 
-        $callback = function() use ($laundryRecords, $totalPaid, $totalUnpaid, $grandTotal) {
+        $callback = function() use ($laundryRecords, $totalPaid, $totalUnpaid, $grandTotal, $includePhone) {
             $file = fopen('php://output', 'w');
-            // CSV header row
-            fputcsv($file, ['Unique ID', 'Phone', 'Price', 'Payment Status', 'Date Received']);
 
-            // Rows
+            // CSV header row - conditionally include Phone
+            if ($includePhone) {
+                fputcsv($file, ['Unique ID', 'Phone', 'Price', 'Payment Status', 'Date Received']);
+            } else {
+                fputcsv($file, ['Unique ID', 'Price', 'Payment Status', 'Date Received']);
+            }
+
+            // Rows - conditionally include phone
             foreach ($laundryRecords as $record) {
-                fputcsv($file, [
-                    $record->unique_id,
-                    $record->phone,
-                    $record->price,
-                    $record->payment_status,
-                    $record->date_received,
-                ]);
+                if ($includePhone) {
+                    fputcsv($file, [
+                        $record->unique_id,
+                        $record->phone,
+                        $record->price,
+                        $record->payment_status,
+                        $record->date_received,
+                    ]);
+                } else {
+                    fputcsv($file, [
+                        $record->unique_id,
+                        $record->price,
+                        $record->payment_status,
+                        $record->date_received,
+                    ]);
+                }
             }
 
             // Blank line
@@ -259,26 +277,43 @@ public function viewLaundryByMonth(Request $request)
                 ->exists();
         });
 
+        // Check if user has admin.all permission
+        $includePhone = Gate::allows('admin.all');
+
         $filename = "new_laundry_{$year}_{$month}.csv";
         $headers = [
             'Content-Type'        => 'text/csv',
             'Content-Disposition' => "attachment; filename={$filename}",
         ];
 
-        $callback = function() use ($newLaundry) {
+        $callback = function() use ($newLaundry, $includePhone) {
             $file = fopen('php://output', 'w');
-            // CSV header
-            fputcsv($file, ['Unique ID', 'Phone', 'Price', 'Payment Status', 'Date Received']);
 
-            // Rows
+            // CSV header - conditionally include Phone
+            if ($includePhone) {
+                fputcsv($file, ['Unique ID', 'Phone', 'Price', 'Payment Status', 'Date Received']);
+            } else {
+                fputcsv($file, ['Unique ID', 'Price', 'Payment Status', 'Date Received']);
+            }
+
+            // Rows - conditionally include phone
             foreach ($newLaundry as $record) {
-                fputcsv($file, [
-                    $record->unique_id,
-                    $record->phone,
-                    $record->price,
-                    $record->payment_status,
-                    $record->date_received,
-                ]);
+                if ($includePhone) {
+                    fputcsv($file, [
+                        $record->unique_id,
+                        $record->phone,
+                        $record->price,
+                        $record->payment_status,
+                        $record->date_received,
+                    ]);
+                } else {
+                    fputcsv($file, [
+                        $record->unique_id,
+                        $record->price,
+                        $record->payment_status,
+                        $record->date_received,
+                    ]);
+                }
             }
 
             fclose($file);

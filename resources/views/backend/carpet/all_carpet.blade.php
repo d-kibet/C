@@ -18,7 +18,7 @@
                         </a>
 
                         <!-- CSV Download Button (shown only if user has permission) -->
-                        @can('mpesa.compare')
+                        @can('admin.all')
                             <a
                                 href="{{ route('reports.carpets.downloadAll') }}"
                                 class="btn btn-secondary rounded-pill waves-effect waves-light"

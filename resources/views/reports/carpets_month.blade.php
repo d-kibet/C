@@ -77,11 +77,13 @@
                 <i class="mdi mdi-download"></i> Download CSV
             </a>
             <!-- Download New Clients CSV -->
+            @can('admin.all')
             <a href="{{ route('reports.carpets.downloadNewMonth', ['month' => $month, 'year' => $year]) }}"
                class="btn btn-info rounded-pill"
             >
                 <i class="mdi mdi-account-plus"></i> Download New Clients CSV
             </a>
+            @endcan
         </div>
 
         <!-- All Carpets Table -->

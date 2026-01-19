@@ -102,11 +102,11 @@
                         <li><a href="{{ route('reports.specific_report') }}">Specific Report</a></li>
                         @endif
 
-                        @if(Auth::user()->can('mpesa.compare'))
+                        @if(Auth::user()->can('admin.all'))
                         <li><a href="{{ route('reports.performance') }}">Performance Dashboard</a></li>
                         @endif
 
-                        @if(Auth::user()->can('mpesa.compare'))
+                        @if(Auth::user()->can('admin.all'))
                         <li><a href="{{ route('customer.retention.index') }}">Customer Retention</a></li>
                         @endif
 
@@ -140,7 +140,7 @@
                 @endif
 
                 <!-- SMS Management -->
-                @if(Auth::user()->can('mpesa.compare'))
+                @if(Auth::user()->can('admin.all'))
                 <li>
                     <a href="javascript: void(0);" data-bs-toggle="collapse">
                         <i class="ri-message-2-line"></i>
@@ -181,7 +181,7 @@
                             <i class="ri-notification-3-line me-2"></i>Notifications
                         </a></li>
 
-                        @if(Auth::user()->can('mpesa.compare'))
+                        @if(Auth::user()->can('admin.all'))
                         <li><a href="{{ route('audit.index') }}">
                             <i class="ri-file-list-3-line me-2"></i>Audit Trail
                         </a></li>
