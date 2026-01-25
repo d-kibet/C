@@ -731,5 +731,7 @@
         animation: spin 1s linear infinite;
     }
     </style>
+
+    @stack('scripts')
 </body>
 </html>

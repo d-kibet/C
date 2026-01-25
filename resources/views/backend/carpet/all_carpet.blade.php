@@ -38,7 +38,7 @@
                 <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
-                        <table id="myTable" class="table table-striped">
+                        <table id="carpetsTable" class="table table-striped" style="width:100%">
                             <thead>
                                 <tr>
                                     <th>Date Received</th>
@@ -52,57 +52,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach($carpet as $item)
-                                    <tr>
-                                        <td>{{ $item->date_received }}</td>
-                                        <td>{{ $item->uniqueid }}</td>
-                                        <td>{{ $item->size }}</td>
-                                        <td>{{ $item->price }}</td>
-                                        <td>{{ $item->phone }}</td>
-                                        <td>{{ $item->payment_status }}</td>
-                                        <td>{{ $item->delivered }}</td>
-                                        <td>
-                                            {{-- History button (commented out in your code)
-                                            <a
-                                                href="{{ route('history.client', $item->id) }}"
-                                                class="btn btn-info"
-                                            >
-                                                History
-                                            </a>
-                                            --}}
-
-                                            @if(Auth::user()->can('carpet.edit'))
-                                                <a
-                                                    href="{{ route('edit.carpet', $item->id) }}"
-                                                    class="btn btn-secondary rounded-pill waves-effect"
-                                                >
-                                                    Edit
-                                                </a>
-                                            @endif
-
-                                            @if(Auth::user()->can('carpet.delete'))
-                                                <a
-                                                    href="{{ route('delete.carpet', $item->id) }}"
-                                                    class="btn btn-danger rounded-pill waves-effect waves-light"
-                                                    id="delete"
-                                                >
-                                                    Delete
-                                                </a>
-                                            @endif
-
-                                            @if(Auth::user()->can('carpet.details'))
-                                            <a
-                                                href="{{ route('details.carpet', $item->id) }}"
-                                                class="btn btn-info btn-rounded waves-effect waves-light"
-                                            >
-                                               Info
-                                            </a>
-                                        @endif
-
-
-                                        </td>
-                                    </tr>
-                                @endforeach
+                                <!-- Data loaded via AJAX -->
                             </tbody>
                         </table>
                     </div>
@@ -114,45 +64,37 @@
     </div> <!-- container -->
 </div> <!-- content -->
 
+@endsection
+
+@push('scripts')
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    document.getElementById("download-csv").addEventListener("click", function(){
-        // Reference the table
-        var table = document.getElementById("myTable");
-        if (!table) {
-            console.error("Table with ID 'myTable' not found.");
-            return;
+$(document).ready(function() {
+    $('#carpetsTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "{{ route('carpets.data') }}",
+            type: 'GET'
+        },
+        columns: [
+            { data: 'date_received', name: 'date_received' },
+            { data: 'uniqueid', name: 'uniqueid' },
+            { data: 'size', name: 'size' },
+            { data: 'price', name: 'price' },
+            { data: 'phone', name: 'phone' },
+            { data: 'payment_status', name: 'payment_status' },
+            { data: 'delivered', name: 'delivered' },
+            { data: 'actions', name: 'actions', orderable: false, searchable: false }
+        ],
+        order: [[0, 'desc']], // Sort by date_received descending
+        pageLength: 25,
+        responsive: true,
+        language: {
+            processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
+            emptyTable: "No carpet records found",
+            zeroRecords: "No matching records found"
         }
-        var rows = table.querySelectorAll("tr");
-        var csv = [];
-
-        // Loop through each row and collect cell text, skipping the last cell (action column)
-        rows.forEach(function(row) {
-            var cols = row.querySelectorAll("td, th");
-            var rowData = [];
-            // Loop through columns, excluding the last one
-            for (var i = 0; i < cols.length - 1; i++) {
-                // Escape double quotes and wrap text in quotes
-                rowData.push('"' + cols[i].innerText.replace(/"/g, '""') + '"');
-            }
-            csv.push(rowData.join(","));
-        });
-
-        // Create a CSV file blob
-        var csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
-
-        // Create a temporary download link and trigger a download
-        var downloadLink = document.createElement("a");
-        downloadLink.download = "carpet_data.csv";
-        downloadLink.href = window.URL.createObjectURL(csvFile);
-        downloadLink.style.display = "none";
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
     });
 });
-
-    </script>
-
-
-@endsection
+</script>
+@endpush

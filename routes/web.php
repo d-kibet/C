@@ -56,6 +56,7 @@ Route::controller(AdminController::class)->middleware(['auth'])->group(function 
 Route::controller(CarpetController::class)->middleware(['auth'])->group(function(){
 
     Route::get('/all/carpet','AllCarpet')->name('all.carpet')->middleware('permission:carpet.all');
+    Route::get('/carpets/data','getCarpetsData')->name('carpets.data')->middleware('permission:carpet.all');
     Route::get('/add/carpet','AddCarpet')->name('add.carpet')->middleware('permission:carpet.add');
     Route::post('/store/carpet','StoreCarpet')->name('carpet.store');
     Route::get('/history/carpet/{phone}','HistoryCarpet')->name('history.client');
@@ -76,8 +77,9 @@ Route::controller(CarpetController::class)->middleware(['auth'])->group(function
     /// Laundry All Route
 Route::controller(LaundryController::class)->middleware(['auth'])->group(function(){
 
-    Route::get('/all/laundry','AllLaundry')->name('all.laundry')->middleware('permission:laundry.all');;
-    Route::get('/add/laundry','AddLaundry')->name('add.laundry')->middleware('permission:laundry.add');;
+    Route::get('/all/laundry','AllLaundry')->name('all.laundry')->middleware('permission:laundry.all');
+    Route::get('/laundries/data','getLaundriesData')->name('laundries.data')->middleware('permission:laundry.all');
+    Route::get('/add/laundry','AddLaundry')->name('add.laundry')->middleware('permission:laundry.add');
     Route::post('/store/laundry','StoreLaundry')->name('laundry.store');
     Route::get('/edit/laundry/{id}','EditLaundry')->name('edit.laundry');
     Route::post('/update/laundry','UpdateLaundry')->name('laundry.update');

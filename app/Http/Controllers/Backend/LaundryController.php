@@ -12,9 +12,101 @@ use Illuminate\Support\Facades\Gate;
 class LaundryController extends Controller
 {
     public function AllLaundry(){
-        $laundry = Laundry::latest()->get();
-        return view('backend.laundry.all_laundry',compact('laundry'));
+        // Just return the view, data will be loaded via AJAX
+        return view('backend.laundry.all_laundry');
+    }
 
+    /**
+     * Server-side DataTables data for All Laundry
+     */
+    public function getLaundriesData(Request $request)
+    {
+        try {
+            $draw = (int) $request->input('draw', 1);
+            $start = (int) $request->input('start', 0);
+            $length = min((int) $request->input('length', 25), 100); // Max 100 records per page
+            $search = $request->input('search.value', '');
+            $orderColumnIndex = (int) $request->input('order.0.column', 0);
+            $orderDirection = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+
+            // Map column index to database column (whitelist approach for security)
+            $columns = ['id', 'name', 'phone', 'date_received', 'date_delivered', 'total', 'payment_status', 'delivered'];
+            $orderColumn = $columns[$orderColumnIndex] ?? 'id';
+
+            // Base query
+            $query = Laundry::query();
+
+            // Total records (without filtering)
+            $totalRecords = Laundry::count();
+
+            // Apply search filter (sanitize search input)
+            if (!empty($search)) {
+                $search = trim($search);
+                $query->where(function($q) use ($search) {
+                    $q->where('name', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhere('unique_id', 'like', "%{$search}%")
+                      ->orWhere('location', 'like', "%{$search}%")
+                      ->orWhere('payment_status', 'like', "%{$search}%")
+                      ->orWhere('delivered', 'like', "%{$search}%");
+                });
+            }
+
+            // Filtered count
+            $filteredRecords = $query->count();
+
+            // Apply ordering and pagination
+            $laundries = $query->orderBy($orderColumn, $orderDirection)
+                              ->skip($start)
+                              ->take($length)
+                              ->get();
+
+            // Format data for DataTables
+            $data = [];
+            $rowNumber = $start + 1;
+            foreach ($laundries as $laundry) {
+                $actions = '';
+
+                if (Gate::allows('laundry.edit')) {
+                    $actions .= '<a href="' . route('edit.laundry', $laundry->id) . '" class="btn btn-secondary btn-sm rounded-pill waves-effect" title="Edit"><i class="fa fa-pencil"></i></a> ';
+                }
+
+                if (Gate::allows('laundry.delete')) {
+                    $actions .= '<a href="' . route('delete.laundry', $laundry->id) . '" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete" title="Delete"><i class="fa fa-trash"></i></a> ';
+                }
+
+                if (Gate::allows('laundry.details')) {
+                    $actions .= '<a href="' . route('details.laundry', $laundry->id) . '" class="btn btn-info btn-sm rounded-pill waves-effect waves-light" title="Details"><i class="fa fa-eye"></i></a>';
+                }
+
+                $data[] = [
+                    'row_number' => $rowNumber++,
+                    'name' => e($laundry->name),
+                    'phone' => e($laundry->phone),
+                    'date_received' => e($laundry->date_received),
+                    'date_delivered' => e($laundry->date_delivered),
+                    'total' => number_format($laundry->total ?? 0, 2),
+                    'payment_status' => e($laundry->payment_status),
+                    'delivered' => e($laundry->delivered),
+                    'actions' => $actions
+                ];
+            }
+
+            return response()->json([
+                'draw' => $draw,
+                'recordsTotal' => $totalRecords,
+                'recordsFiltered' => $filteredRecords,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'draw' => 0,
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => 'An error occurred while fetching data.'
+            ], 500);
+        }
     }
 
     public function AddLaundry(){

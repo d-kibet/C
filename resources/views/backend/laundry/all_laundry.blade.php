@@ -9,7 +9,7 @@
                 <div class="page-title-box d-flex justify-content-between align-items-center">
                     <h4 class="page-title mb-0">All Laundry Data</h4>
                     <div class="page-title-right d-flex align-items-center">
-                        <!-- Add Carpet Button -->
+                        <!-- Add Laundry Button -->
                         <a
                             href="{{ route('add.laundry') }}"
                             class="btn btn-primary rounded-pill waves-effect waves-light me-2"
@@ -37,60 +37,26 @@
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        <table id="myTable" class="table dt-responsive nowrap w-100">
-                            <thead>
-                                <tr>
-                                    <th>No.</th>
-                                    <th>Name</th>
-                                    <th>Phone</th>
-                                    <!-- Removed Location and Unique Id columns -->
-                                    <th>Date Received</th>
-                                    <th>Date Delivered</th>
-                                    <th>Total</th>
-                                    <th>Payment Status</th>
-                                    <th>Delivered</th>
-                                    <th>Action</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($laundry as $item)
+                        <div class="table-responsive">
+                            <table id="laundryTable" class="table table-striped" style="width:100%">
+                                <thead>
                                     <tr>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $item->name }}</td>
-                                        <td>{{ $item->phone }}</td>
-                                        <!-- Removed location and unique_id columns from the body -->
-                                        <td>{{ $item->date_received }}</td>
-                                        <td>{{ $item->date_delivered }}</td>
-                                        <td>{{ $item->total }}</td>
-                                        <td>{{ $item->payment_status }}</td>
-                                        <td>{{ $item->delivered }}</td>
-                                        <td>
-                                            @can('laundry.edit')
-                                                <a href="{{ route('edit.laundry', $item->id) }}" class="btn btn-secondary rounded-pill waves-effect" title="Edit">
-                                                    <i class="fa fa-pencil" aria-hidden="true"></i>
-                                                </a>
-                                            @endcan
-
-                                            @can('laundry.delete')
-                                                <a href="{{ route('delete.laundry', $item->id) }}" class="btn btn-danger rounded-pill waves-effect waves-light delete" title="Delete">
-                                                    <i class="fa fa-trash" aria-hidden="true"></i>
-                                                </a>
-                                            @endcan
-
-                                            @can('laundry.details')
-                                                <a href="{{ route('details.laundry', $item->id) }}" class="btn btn-info rounded-pill waves-effect waves-light" title="Details">
-                                                    <i class="fa fa-eye" aria-hidden="true"></i>
-                                                </a>
-                                            @endcan
-                                        </td>
+                                        <th>No.</th>
+                                        <th>Name</th>
+                                        <th>Phone</th>
+                                        <th>Date Received</th>
+                                        <th>Date Delivered</th>
+                                        <th>Total</th>
+                                        <th>Payment Status</th>
+                                        <th>Delivered</th>
+                                        <th>Action</th>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="9" class="text-center">No laundry data available.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody>
+                                    <!-- Data loaded via AJAX -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div> <!-- end card-body -->
                 </div> <!-- end card -->
             </div> <!-- end col -->
@@ -98,45 +64,38 @@
     </div> <!-- end container-fluid -->
 </div> <!-- end content -->
 
-<script>
-    document.addEventListener("DOMContentLoaded", function() {
-        document.getElementById("download-csv").addEventListener("click", function(){
-            // Reference the table
-            var table = document.getElementById("myTable");
-            if (!table) {
-                console.error("Table with ID 'myTable' not found.");
-                return;
-            }
-            var rows = table.querySelectorAll("tr");
-            var csv = [];
-
-            // Loop through each row and collect cell text, skipping the last cell (action column)
-            rows.forEach(function(row) {
-                var cols = row.querySelectorAll("td, th");
-                var rowData = [];
-                // Loop through columns, excluding the last one
-                for (var i = 0; i < cols.length - 1; i++) {
-                    // Escape double quotes and wrap text in quotes
-                    rowData.push('"' + cols[i].innerText.replace(/"/g, '""') + '"');
-                }
-                csv.push(rowData.join(","));
-            });
-
-            // Create a CSV file blob
-            var csvFile = new Blob([csv.join("\n")], { type: "text/csv" });
-
-            // Create a temporary download link and trigger a download
-            var downloadLink = document.createElement("a");
-            downloadLink.download = "laundry_data.csv";
-            downloadLink.href = window.URL.createObjectURL(csvFile);
-            downloadLink.style.display = "none";
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-        });
-    });
-    </script>
-
-
-
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    $('#laundryTable').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: {
+            url: "{{ route('laundries.data') }}",
+            type: 'GET'
+        },
+        columns: [
+            { data: 'row_number', name: 'row_number', orderable: false, searchable: false },
+            { data: 'name', name: 'name' },
+            { data: 'phone', name: 'phone' },
+            { data: 'date_received', name: 'date_received' },
+            { data: 'date_delivered', name: 'date_delivered' },
+            { data: 'total', name: 'total' },
+            { data: 'payment_status', name: 'payment_status' },
+            { data: 'delivered', name: 'delivered' },
+            { data: 'actions', name: 'actions', orderable: false, searchable: false }
+        ],
+        order: [[3, 'desc']], // Sort by date_received descending
+        pageLength: 25,
+        responsive: true,
+        language: {
+            processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
+            emptyTable: "No laundry records found",
+            zeroRecords: "No matching records found"
+        }
+    });
+});
+</script>
+@endpush

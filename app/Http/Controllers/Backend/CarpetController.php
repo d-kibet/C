@@ -12,9 +12,100 @@ use Illuminate\Support\Facades\Gate;
 class CarpetController extends Controller
 {
     public function AllCarpet(){
+        // Just return the view, data will be loaded via AJAX
+        return view('backend.carpet.all_carpet');
+    } // End Method
 
-        $carpet = Carpet::latest()->get();
-        return view('backend.carpet.all_carpet',compact('carpet'));
+    /**
+     * Server-side DataTables data for All Carpets
+     */
+    public function getCarpetsData(Request $request)
+    {
+        try {
+            $draw = (int) $request->input('draw', 1);
+            $start = (int) $request->input('start', 0);
+            $length = min((int) $request->input('length', 25), 100); // Max 100 records per page
+            $search = $request->input('search.value', '');
+            $orderColumnIndex = (int) $request->input('order.0.column', 0);
+            $orderDirection = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
+
+            // Map column index to database column (whitelist approach for security)
+            $columns = ['date_received', 'uniqueid', 'size', 'price', 'phone', 'payment_status', 'delivered'];
+            $orderColumn = $columns[$orderColumnIndex] ?? 'date_received';
+
+            // Base query
+            $query = Carpet::query();
+
+            // Total records (without filtering)
+            $totalRecords = Carpet::count();
+
+            // Apply search filter (sanitize search input)
+            if (!empty($search)) {
+                $search = trim($search);
+                $query->where(function($q) use ($search) {
+                    $q->where('uniqueid', 'like', "%{$search}%")
+                      ->orWhere('name', 'like', "%{$search}%")
+                      ->orWhere('phone', 'like', "%{$search}%")
+                      ->orWhere('size', 'like', "%{$search}%")
+                      ->orWhere('location', 'like', "%{$search}%")
+                      ->orWhere('payment_status', 'like', "%{$search}%")
+                      ->orWhere('delivered', 'like', "%{$search}%");
+                });
+            }
+
+            // Filtered count
+            $filteredRecords = $query->count();
+
+            // Apply ordering and pagination
+            $carpets = $query->orderBy($orderColumn, $orderDirection)
+                             ->skip($start)
+                             ->take($length)
+                             ->get();
+
+            // Format data for DataTables
+            $data = [];
+            foreach ($carpets as $carpet) {
+                $actions = '';
+
+                if (Gate::allows('carpet.edit')) {
+                    $actions .= '<a href="' . route('edit.carpet', $carpet->id) . '" class="btn btn-secondary btn-sm rounded-pill waves-effect">Edit</a> ';
+                }
+
+                if (Gate::allows('carpet.delete')) {
+                    $actions .= '<a href="' . route('delete.carpet', $carpet->id) . '" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete">Delete</a> ';
+                }
+
+                if (Gate::allows('carpet.details')) {
+                    $actions .= '<a href="' . route('details.carpet', $carpet->id) . '" class="btn btn-info btn-sm rounded-pill waves-effect waves-light">Info</a>';
+                }
+
+                $data[] = [
+                    'date_received' => e($carpet->date_received),
+                    'uniqueid' => e($carpet->uniqueid),
+                    'size' => e($carpet->size),
+                    'price' => number_format($carpet->price ?? 0, 2),
+                    'phone' => e($carpet->phone),
+                    'payment_status' => e($carpet->payment_status),
+                    'delivered' => e($carpet->delivered),
+                    'actions' => $actions
+                ];
+            }
+
+            return response()->json([
+                'draw' => $draw,
+                'recordsTotal' => $totalRecords,
+                'recordsFiltered' => $filteredRecords,
+                'data' => $data
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'draw' => 0,
+                'recordsTotal' => 0,
+                'recordsFiltered' => 0,
+                'data' => [],
+                'error' => 'An error occurred while fetching data.'
+            ], 500);
+        }
     } // End Method
 
     public function CarpetDashboard()
