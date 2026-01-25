@@ -492,6 +492,44 @@ class ReportController extends Controller
         ];
     }
 
+    public function pendingCarpets()
+    {
+        // Get all pending delivery carpets
+        $pendingDelivery = Carpet::where('delivered', 'Not Delivered')
+            ->orderBy('date_received', 'asc')
+            ->get()
+            ->map(function($carpet) {
+                $carpet->aging_days = Carbon::parse($carpet->date_received)->diffInDays(now());
+                return $carpet;
+            });
+
+        // Get all unpaid carpets
+        $unpaidCarpets = Carpet::where('payment_status', 'Not Paid')
+            ->orderBy('date_received', 'asc')
+            ->get()
+            ->map(function($carpet) {
+                $carpet->aging_days = Carbon::parse($carpet->date_received)->diffInDays(now());
+                return $carpet;
+            });
+
+        // Calculate summary metrics
+        $pendingCount = $pendingDelivery->count();
+        $unpaidCount = $unpaidCarpets->count();
+        $unpaidValue = $unpaidCarpets->sum('price');
+        $avgAgingDays = $pendingDelivery->count() > 0
+            ? round($pendingDelivery->avg('aging_days'), 1)
+            : 0;
+
+        return view('reports.pending_carpets', compact(
+            'pendingDelivery',
+            'unpaidCarpets',
+            'pendingCount',
+            'unpaidCount',
+            'unpaidValue',
+            'avgAgingDays'
+        ));
+    }
+
     private function getExpensePerformanceData($fromDate, $toDate)
     {
         // Get expense data for the period

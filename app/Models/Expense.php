@@ -11,7 +11,21 @@ class Expense extends Model
 {
     use HasFactory, Auditable;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'category_id',
+        'subcategory',
+        'vendor_name',
+        'description',
+        'amount',
+        'expense_date',
+        'payment_method',
+        'transaction_reference',
+        'receipt_image',
+        'approved_by',
+        'approval_status',
+        'notes',
+        'created_by',
+    ];
 
     protected $casts = [
         'amount' => 'decimal:2',

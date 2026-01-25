@@ -85,17 +85,24 @@ class AdminController extends Controller
 
     // Check if a new profile image has been uploaded
     if ($request->hasFile('profile_image')) {
+        // Validate file type and size
+        $request->validate([
+            'profile_image' => 'image|mimes:jpeg,jpg,png,gif,webp|max:2048',
+        ]);
+
         $file = $request->file('profile_image');
 
         // Remove the existing profile image if it exists
-        $existingImage = public_path('upload/admin_images/' . $user->profile_image);
-        if ($user->profile_image && file_exists($existingImage)) {
-            unlink($existingImage);
+        if ($user->profile_image) {
+            $existingPath = 'admin_images/' . $user->profile_image;
+            if (Storage::disk('public')->exists($existingPath)) {
+                Storage::disk('public')->delete($existingPath);
+            }
         }
 
-        // Create a new unique filename and move the file to the destination folder
-        $filename = date('YmdHi') . $file->getClientOriginalName();
-        $file->move(public_path('upload/admin_images'), $filename);
+        // Store with a safe generated filename
+        $filename = uniqid('admin_') . '.' . $file->getClientOriginalExtension();
+        $file->storeAs('admin_images', $filename, 'public');
 
         // Update the user's profile image field with the new filename
         $user->profile_image = $filename;
@@ -123,9 +130,11 @@ class AdminController extends Controller
 
         $validateData = $request->validate([
             'oldpassword' => 'required',
-            'newpassword' => 'required',
+            'newpassword' => 'required|string|min:10|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/',
             'confirm_password' => 'required|same:newpassword',
-
+        ], [
+            'newpassword.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+            'newpassword.min' => 'Password must be at least 10 characters.',
         ]);
         //Changeing the password in the DB
         $hashedPassword = Auth::user()->password;
@@ -183,9 +192,12 @@ class AdminController extends Controller
         'name'     => 'required|string|max:255',
         'email'    => 'required|string|email|max:255|unique:users,email',
         'username' => 'required|string|max:255|unique:users,username',
-        'phone'    => 'required|string|max:10',
-        'password' => 'required|string|min:8',
-        'roles'    => 'nullable', // or adjust if expecting multiple roles
+        'phone'    => 'required|string|max:13',
+        'password' => 'required|string|min:10|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/',
+        'roles'    => 'nullable',
+    ], [
+        'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+        'password.min' => 'Password must be at least 10 characters.',
     ]);
 
     // Create the user
@@ -374,7 +386,10 @@ public function DeleteAdmin($id){
     public function UpdateAdminPassword(Request $request){
         $validated = $request->validate([
             'user_id' => 'required|exists:users,id',
-            'new_password' => 'required|string|min:8|confirmed',
+            'new_password' => 'required|string|min:10|confirmed|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/',
+        ], [
+            'new_password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
+            'new_password.min' => 'Password must be at least 10 characters.',
         ]);
 
         $user = User::findOrFail($validated['user_id']);
@@ -416,14 +431,28 @@ public function DeleteAdmin($id){
     }// End Method
 
     public function DownloadDatabase($getFilename){
-        $path = storage_path('app\Raha/'.$getFilename);
+        // Sanitize filename - only allow alphanumeric, dots, hyphens, underscores
+        $getFilename = basename($getFilename);
+        if (!preg_match('/^[\w\-. ]+$/', $getFilename)) {
+            abort(403, 'Invalid filename');
+        }
+
+        $path = storage_path('app/Raha/'.$getFilename);
+        if (!file_exists($path)) {
+            abort(404, 'File not found');
+        }
         return response()->download($path);
     }// End Method
 
     public function DeleteDatabase($getFilename){
+        // Sanitize filename - only allow alphanumeric, dots, hyphens, underscores
+        $getFilename = basename($getFilename);
+        if (!preg_match('/^[\w\-. ]+$/', $getFilename)) {
+            abort(403, 'Invalid filename');
+        }
 
         Storage::delete('Raha/'.$getFilename);
-         $notification = array(
+        $notification = array(
             'message' => 'Database Deleted Successfully',
             'alert-type' => 'success'
         );

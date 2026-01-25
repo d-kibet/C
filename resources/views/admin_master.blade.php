@@ -182,10 +182,10 @@
         // Only load notifications if we're on an authenticated page
         if (document.getElementById('notificationDropdown')) {
             loadNotifications();
-            
+
             // Load notifications every 30 seconds
             setInterval(loadNotifications, 30000);
-            
+
             // Load notifications when dropdown is clicked
             document.getElementById('notificationDropdown').addEventListener('click', function() {
                 loadNotifications();
@@ -235,20 +235,20 @@
             badge.style.display = 'flex';
             pulse.style.display = 'block';
             badge.textContent = count > 99 ? '99+' : count;
-            
+
             // Add shake animation for new notifications
             bell.classList.add('notification-bell-shake');
             setTimeout(() => {
                 bell.classList.remove('notification-bell-shake');
             }, 1000);
-            
+
             // Add urgent class for high counts
             if (count > 10) {
                 bell.classList.add('notification-urgent');
             } else {
                 bell.classList.remove('notification-urgent');
             }
-            
+
             // Add gradient color based on count with enhanced visibility
             if (count > 10) {
                 badge.style.background = 'linear-gradient(135deg, #dc3545, #b02a37)';
@@ -296,16 +296,16 @@
 
         let html = '';
         notifications.forEach(notification => {
-            const iconClass = notification.data.type === 'overdue_delivery' ? 
+            const iconClass = notification.data.type === 'overdue_delivery' ?
                 'ri-time-line text-warning' : 'ri-notification-3-line text-info';
-            
+
             const actionUrl = notification.data.action_url || '#';
             const hasAction = notification.data.action_url;
-            
+
             // Truncate long messages
-            const message = notification.message.length > 60 ? 
+            const message = notification.message.length > 60 ?
                 notification.message.substring(0, 60) + '...' : notification.message;
-            
+
             html += `
                 <div class="notification-item">
                     <div class="d-flex align-items-start p-3 border-bottom">
@@ -328,7 +328,7 @@
                 </div>
             `;
         });
-        
+
         // Add "View All" link if there are more than 5 notifications
         if (notifications.length >= 5) {
             html += `
@@ -339,13 +339,13 @@
                 </div>
             `;
         }
-        
+
         list.innerHTML = html;
     }
 
     function markNotificationAsRead(notificationId, event) {
         event.preventDefault();
-        
+
         fetch(`/notifications/${notificationId}/read`, {
             method: 'POST',
             headers: {
@@ -364,10 +364,10 @@
             console.error('Error marking notification as read:', error);
         });
     }
-    
+
     function markAsReadAndRedirect(notificationId, actionUrl, event) {
         event.preventDefault();
-        
+
         fetch(`/notifications/${notificationId}/read`, {
             method: 'POST',
             headers: {
@@ -399,18 +399,18 @@
         border-radius: 0.75rem;
         transition: all 0.3s ease;
     }
-    
+
     .notification-bell:hover {
         background: rgba(13, 110, 253, 0.1);
         transform: translateY(-2px);
         box-shadow: 0 4px 12px rgba(13, 110, 253, 0.15);
     }
-    
+
     .notification-bell-container {
         position: relative;
         display: inline-block;
     }
-    
+
     .notification-bell-icon {
         font-size: 1.4rem;
         color: #0d6efd;
@@ -418,13 +418,13 @@
         font-weight: 600;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
     }
-    
+
     .notification-bell:hover .notification-bell-icon {
         color: #0b5ed7;
         transform: rotate(15deg) scale(1.1);
         text-shadow: 0 2px 4px rgba(11, 94, 215, 0.3);
     }
-    
+
     .notification-badge {
         position: absolute;
         top: -10px;
@@ -445,7 +445,7 @@
         z-index: 10;
         text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
     }
-    
+
     .notification-pulse {
         position: absolute;
         top: -10px;
@@ -459,7 +459,7 @@
         z-index: 5;
         box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
     }
-    
+
     @keyframes notification-bounce {
         0%, 20%, 60%, 100% {
             transform: translateY(0) scale(1);
@@ -471,7 +471,7 @@
             transform: translateY(-2px) scale(1.08);
         }
     }
-    
+
     @keyframes notification-pulse {
         0% {
             transform: scale(1);
@@ -486,7 +486,7 @@
             opacity: 0;
         }
     }
-    
+
     /* Bell shake animation for new notifications */
     @keyframes notification-shake {
         0%, 100% { transform: rotate(0deg) scale(1); }
@@ -499,20 +499,20 @@
         70% { transform: rotate(1deg) scale(1.01); }
         80% { transform: rotate(0deg) scale(1); }
     }
-    
+
     .notification-bell-shake .notification-bell-icon {
         animation: notification-shake 1s ease-in-out;
     }
-    
+
     .notification-bell-shake {
         box-shadow: 0 4px 16px rgba(13, 110, 253, 0.3), 0 0 0 1px rgba(13, 110, 253, 0.2);
     }
-    
+
     /* Urgent notification styling */
     .notification-urgent {
         animation: urgent-glow 2s infinite alternate;
     }
-    
+
     @keyframes urgent-glow {
         0% {
             box-shadow: 0 0 5px rgba(220, 53, 69, 0.3);
@@ -523,15 +523,15 @@
             background: rgba(220, 53, 69, 0.1);
         }
     }
-    
+
     .notification-urgent .notification-bell-icon {
         color: #dc3545;
     }
-    
+
     .notification-urgent:hover .notification-bell-icon {
         color: #b02a37;
     }
-    
+
     /* Dropdown enhancements */
     .dropdown-menu {
         border: none;
@@ -539,13 +539,13 @@
         border-radius: 0.5rem;
         overflow: hidden;
     }
-    
+
     .notification-dropdown-header {
         background: linear-gradient(135deg, #ffffff 0%, #f1f8ff 100%);
         border-bottom: 2px solid #e3f2fd;
         position: relative;
     }
-    
+
     .notification-dropdown-header::before {
         content: '';
         position: absolute;
@@ -557,63 +557,63 @@
         background-size: 200% 100%;
         animation: header-shimmer 3s infinite;
     }
-    
+
     @keyframes header-shimmer {
         0% { background-position: -200% 0; }
         100% { background-position: 200% 0; }
     }
-    
+
     .notification-dropdown-footer {
         background-color: #f8f9fa;
     }
-    
+
     .notification-dropdown-footer .btn {
         font-size: 0.8rem;
         padding: 0.4rem 0.8rem;
         border-radius: 0.375rem;
         font-weight: 500;
     }
-    
+
     /* Enhanced focus and active states */
     .notification-bell:focus {
         box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.3), 0 4px 12px rgba(13, 110, 253, 0.2);
         outline: none;
     }
-    
+
     /* Active state for dropdown */
     .notification-bell[aria-expanded="true"] {
         background: rgba(13, 110, 253, 0.15);
         box-shadow: 0 4px 16px rgba(13, 110, 253, 0.25);
         transform: translateY(-1px);
     }
-    
+
     .notification-bell[aria-expanded="true"] .notification-bell-icon {
         color: #0b5ed7;
         transform: rotate(15deg) scale(1.05);
         text-shadow: 0 2px 4px rgba(11, 94, 215, 0.4);
     }
-    
+
     /* Enhanced visibility when notifications are present */
     .notification-bell:has(.notification-badge) {
         background: rgba(220, 53, 69, 0.05);
     }
-    
+
     .notification-bell:has(.notification-badge):hover {
         background: rgba(220, 53, 69, 0.1);
         box-shadow: 0 4px 12px rgba(220, 53, 69, 0.2);
     }
-    
+
     /* Loading state styling */
     .notification-loading {
         background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%);
         background-size: 200% 100%;
         animation: notification-shimmer 1.5s infinite;
     }
-    
+
     .notification-spinner {
         position: relative;
     }
-    
+
     @keyframes notification-shimmer {
         0% {
             background-position: -200% 0;
@@ -622,15 +622,15 @@
             background-position: 200% 0;
         }
     }
-    
-    
-    
-    
+
+
+
+
     /* Ensure no element causes overflow */
     .page-content {
         overflow-x: hidden;
     }
-    
+
     /* Fix any Bootstrap components that might have oversized arrows */
     .dropdown-toggle::after,
     .dropup .dropdown-toggle::after,
@@ -648,23 +648,23 @@
         height: auto !important;
         font-size: inherit !important;
     }
-    
-    
+
+
 
     /* Notification Dropdown Improvements */
     .dropdown-menu {
         max-width: 380px;
         box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
     }
-    
+
     .notification-item {
         transition: background-color 0.2s ease;
     }
-    
+
     .notification-item:hover {
         background-color: #f8f9fa;
     }
-    
+
     .notification-icon .icon-circle {
         width: 36px;
         height: 36px;
@@ -674,50 +674,50 @@
         align-items: center;
         justify-content: center;
     }
-    
+
     .notification-content {
         min-width: 0; /* Allows text-truncate to work in flex */
     }
-    
+
     .notification-message {
         font-size: 0.875rem;
         font-weight: 500;
         line-height: 1.4;
         color: #495057;
     }
-    
+
     .notification-actions {
         display: flex;
         gap: 0.25rem;
     }
-    
+
     .notification-actions .btn {
         padding: 0.25rem 0.5rem;
         font-size: 0.75rem;
         border-radius: 0.375rem;
     }
-    
+
     /* Scrollable content area */
     #notificationList {
         max-height: 400px;
         overflow-y: auto;
     }
-    
+
     /* Custom scrollbar */
     #notificationList::-webkit-scrollbar {
         width: 6px;
     }
-    
+
     #notificationList::-webkit-scrollbar-track {
         background: #f1f1f1;
         border-radius: 3px;
     }
-    
+
     #notificationList::-webkit-scrollbar-thumb {
         background: #c1c1c1;
         border-radius: 3px;
     }
-    
+
     #notificationList::-webkit-scrollbar-thumb:hover {
         background: #a8a8a8;
     }

@@ -3,7 +3,6 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Storage;
 use App\Http\Controllers\Backend\CarpetController;
 use App\Http\Controllers\Backend\LaundryController;
 use App\Http\Controllers\Backend\MpesaController;
@@ -43,18 +42,18 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::controller(AdminController::class)->group(function () {
-    route::get('/admin/logout', 'destroy')->name('admin.logout');
-    route::get('/admin/profile', 'Profile')->name('admin.profile');
-    route::get('/edit/profile', 'EditProfile')->name('edit.profile');
-    route::post('/store/profile', 'StoreProfile')->name('store.profile');
-    route::get('/change/password', 'ChangePassword')->name('change.password');
-    route::post('/update/password', 'UpdatePassword')->name('update.password');
+Route::controller(AdminController::class)->middleware(['auth'])->group(function () {
+    Route::get('/admin/logout', 'destroy')->name('admin.logout');
+    Route::get('/admin/profile', 'Profile')->name('admin.profile');
+    Route::get('/edit/profile', 'EditProfile')->name('edit.profile');
+    Route::post('/store/profile', 'StoreProfile')->name('store.profile');
+    Route::get('/change/password', 'ChangePassword')->name('change.password');
+    Route::post('/update/password', 'UpdatePassword')->name('update.password');
 });
 
 
 /// Carpet All Route
-Route::controller(CarpetController::class)->group(function(){
+Route::controller(CarpetController::class)->middleware(['auth'])->group(function(){
 
     Route::get('/all/carpet','AllCarpet')->name('all.carpet')->middleware('permission:carpet.all');
     Route::get('/add/carpet','AddCarpet')->name('add.carpet')->middleware('permission:carpet.add');
@@ -75,7 +74,7 @@ Route::controller(CarpetController::class)->group(function(){
     });
 
     /// Laundry All Route
-Route::controller(LaundryController::class)->group(function(){
+Route::controller(LaundryController::class)->middleware(['auth'])->group(function(){
 
     Route::get('/all/laundry','AllLaundry')->name('all.laundry')->middleware('permission:laundry.all');;
     Route::get('/add/laundry','AddLaundry')->name('add.laundry')->middleware('permission:laundry.add');;
@@ -92,7 +91,7 @@ Route::controller(LaundryController::class)->group(function(){
     });
 
      /// Mpesa All Route
-Route::controller(MpesaController::class)->group(function(){
+Route::controller(MpesaController::class)->middleware(['auth'])->group(function(){
 
     Route::get('/all/mpesa','AllMpesa')->name('all.mpesa')->middleware('permission:mpesa.all');;
     Route::get('/add/mpesa','AddMpesa')->name('add.mpesa')->middleware('permission:mpesa.add');;
@@ -105,7 +104,7 @@ Route::controller(MpesaController::class)->group(function(){
     });
 
     /// Report All Route
-Route::controller(ReportController::class)->group(function(){
+Route::controller(ReportController::class)->middleware(['auth'])->group(function(){
 
     Route::get('reports/carpets/today','CarpetsToday')->name('reports.carpets.today');
     Route::get('reports/laundry/today','LaundryToday')->name('reports.laundry.today');
@@ -114,6 +113,7 @@ Route::controller(ReportController::class)->group(function(){
     Route::post('reports/landing/handle','handle')->name('reports.specific_report.handle');
     Route::get('reports/performance','performance')->name('reports.performance');
     Route::post('reports/performance-data','performanceData')->name('reports.performance.data');
+    Route::get('reports/carpets/pending','pendingCarpets')->name('reports.carpets.pending');
 
     });
 
@@ -132,8 +132,8 @@ Route::controller(ContactController::class)->group(function () {
 });
 
 Route::controller(AboutController::class)->group(function () {
-    Route::get('/about/page', 'AboutPage')->name('about.page');
-    Route::post('/update/about', 'UpdateAbout')->name('update.about');
+    Route::get('/about/page', 'AboutPage')->name('about.page')->middleware('auth');
+    Route::post('/update/about', 'UpdateAbout')->name('update.about')->middleware(['auth', 'can:admin.all']);
     Route::get('/about', 'HomeAbout')->name('home.about');
 
 //     Route::get('/about/multi/image', 'AboutMultiImage')->name('about.multi.image');
@@ -155,7 +155,7 @@ Route::controller(AboutController::class)->group(function () {
 });
 
 ///Permission All Route
-Route::controller(RoleController::class)->group(function(){
+Route::controller(RoleController::class)->middleware(['auth', 'can:admin.all'])->group(function(){
 
     Route::get('/all/permission','AllPermission')->name('all.permission');
     Route::get('/add/permission','AddPermission')->name('add.permission');
@@ -166,7 +166,7 @@ Route::controller(RoleController::class)->group(function(){
 });
 
 ///Roles All Route
-Route::controller(RoleController::class)->group(function(){
+Route::controller(RoleController::class)->middleware(['auth', 'can:admin.all'])->group(function(){
 
     Route::get('/all/roles','AllRoles')->name('all.roles');
     Route::get('/add/roles','AddRoles')->name('add.roles');
@@ -177,7 +177,7 @@ Route::controller(RoleController::class)->group(function(){
 });
 
 ///Add Roles in Permission All Route
-Route::controller(RoleController::class)->group(function(){
+Route::controller(RoleController::class)->middleware(['auth', 'can:admin.all'])->group(function(){
 
     Route::get('/add/roles/permission','AddRolesPermission')->name('add.roles.permission');
     Route::post('/role/permission/store','StoreRolesPermission')->name('role.permission.store');
@@ -189,7 +189,7 @@ Route::controller(RoleController::class)->group(function(){
 });
 
 ///Admin User All Route
-Route::controller(AdminController::class)->group(function(){
+Route::controller(AdminController::class)->middleware(['auth', 'can:admin.all'])->group(function(){
 
     Route::get('/all/admin','AllAdmin')->name('all.admin');
     Route::get('/add/admin','AddAdmin')->name('add.admin');
@@ -199,19 +199,18 @@ Route::controller(AdminController::class)->group(function(){
     Route::get('/delete/admin/{id}','DeleteAdmin')->name('delete.admin');
 
     // Suspend/Activate Admin
-    Route::get('/suspend/admin/{id}','SuspendAdmin')->name('suspend.admin')->middleware('can:admin.all');
-    Route::get('/activate/admin/{id}','ActivateAdmin')->name('activate.admin')->middleware('can:admin.all');
+    Route::get('/suspend/admin/{id}','SuspendAdmin')->name('suspend.admin');
+    Route::get('/activate/admin/{id}','ActivateAdmin')->name('activate.admin');
 
     // Change Admin Password (Superadmin only)
-    Route::get('/change/admin/password/{id}','ChangeAdminPassword')->name('change.admin.password')->middleware('can:admin.all');
-    Route::post('/update/admin/password','UpdateAdminPassword')->name('update.admin.password')->middleware('can:admin.all');
-
+    Route::get('/change/admin/password/{id}','ChangeAdminPassword')->name('change.admin.password');
+    Route::post('/update/admin/password','UpdateAdminPassword')->name('update.admin.password');
 
     // Database Backup
     Route::get('/database/backup','DatabaseBackup')->name('database.backup');
-    Route::get('/backup/now','BackupNow');
-    Route::get('download/{getFilename}','DownloadDatabase');
-    Route::get('/delete/database/{getFilename}','DeleteDatabase');
+    Route::get('/backup/now','BackupNow')->name('backup.now');
+    Route::get('download/{getFilename}','DownloadDatabase')->name('download.database');
+    Route::get('/delete/database/{getFilename}','DeleteDatabase')->name('delete.database');
 
    });
 
@@ -246,77 +245,6 @@ Route::controller(App\Http\Controllers\Backend\ExpenseController::class)->middle
     Route::put('/expenses/{expense}', 'update')->name('expenses.update');
     Route::delete('/expenses/{expense}', 'destroy')->name('expenses.destroy');
     Route::get('/expenses/{expense}/receipt', 'serveReceipt')->name('expense.receipt');
-    Route::get('/expenses/debug/storage', function() {
-        $files = collect(Storage::disk('public')->files('receipts'))->take(5);
-        $publicPath = public_path('storage/receipts');
-        $storagePath = storage_path('app/public/receipts');
-        
-        return response()->json([
-            'storage_files' => $files,
-            'public_path_exists' => is_dir($publicPath),
-            'storage_path_exists' => is_dir($storagePath),
-            'symlink_exists' => is_link(public_path('storage')),
-            'symlink_target' => is_link(public_path('storage')) ? readlink(public_path('storage')) : null,
-            'app_url' => config('app.url'),
-            'environment' => app()->environment(),
-        ]);
-    })->name('expenses.debug.storage')->middleware('auth');
-    
-    Route::post('/expenses/test-post', function(\Illuminate\Http\Request $request) {
-        return response()->json([
-            'success' => true,
-            'message' => 'POST request works',
-            'user_id' => Auth::id(),
-            'timestamp' => now(),
-        ]);
-    })->name('expenses.test.post')->middleware('auth');
-    
-    Route::post('/expenses/debug-upload', function(\Illuminate\Http\Request $request) {
-        try {
-            $debugInfo = [
-                'has_file' => $request->hasFile('receipt_image'),
-                'files_array' => array_keys($request->allFiles()),
-                'post_data' => array_keys($request->except(['_token'])),
-                'content_type' => $request->header('Content-Type'),
-                'content_length' => $request->header('Content-Length'),
-                'php_upload_errors' => [
-                    UPLOAD_ERR_OK => 'UPLOAD_ERR_OK',
-                    UPLOAD_ERR_INI_SIZE => 'UPLOAD_ERR_INI_SIZE', 
-                    UPLOAD_ERR_FORM_SIZE => 'UPLOAD_ERR_FORM_SIZE',
-                    UPLOAD_ERR_PARTIAL => 'UPLOAD_ERR_PARTIAL',
-                    UPLOAD_ERR_NO_FILE => 'UPLOAD_ERR_NO_FILE',
-                    UPLOAD_ERR_NO_TMP_DIR => 'UPLOAD_ERR_NO_TMP_DIR',
-                    UPLOAD_ERR_CANT_WRITE => 'UPLOAD_ERR_CANT_WRITE',
-                ],
-            ];
-            
-            if ($request->hasFile('receipt_image')) {
-                $file = $request->file('receipt_image');
-                $debugInfo['file_info'] = [
-                    'original_name' => $file->getClientOriginalName(),
-                    'mime_type' => $file->getMimeType(),
-                    'size' => $file->getSize(),
-                    'extension' => $file->getClientOriginalExtension(),
-                    'is_valid' => $file->isValid(),
-                    'error_code' => $file->getError(),
-                    'error_message' => $debugInfo['php_upload_errors'][$file->getError()] ?? 'Unknown error',
-                ];
-            }
-            
-            return response()->json([
-                'success' => true,
-                'data' => $debugInfo
-            ]);
-            
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ], 200); // Return 200 to avoid fetch error
-        }
-    })->name('expenses.debug.upload')->middleware('auth');
     Route::post('/expenses/quick-add', 'quickAdd')->name('expenses.quickAdd');
     Route::post('/expenses/{expense}/approve', 'approve')->name('expenses.approve');
     Route::post('/expenses/{expense}/reject', 'reject')->name('expenses.reject');
@@ -334,11 +262,11 @@ Route::post('/api/performance/data', [ReportController::class, 'performanceData'
 Route::controller(App\Http\Controllers\Backend\SmsController::class)->middleware('auth')->group(function () {
     Route::get('/sms/dashboard', 'dashboard')->name('sms.dashboard');
     Route::get('/sms/send', 'sendForm')->name('sms.send');
-    Route::post('/sms/send-single', 'sendSingle')->name('sms.sendSingle');
+    Route::post('/sms/send-single', 'sendSingle')->name('sms.sendSingle')->middleware('throttle:10,1');
     Route::get('/sms/bulk', 'bulkForm')->name('sms.bulk');
     Route::post('/sms/preview-recipients', 'previewRecipients')->name('sms.previewRecipients');
-    Route::post('/sms/send-bulk', 'sendBulk')->name('sms.sendBulk');
-    Route::post('/sms/send-to-carpet/{id}', 'sendToCarpet')->name('sms.sendToCarpet');
+    Route::post('/sms/send-bulk', 'sendBulk')->name('sms.sendBulk')->middleware('throttle:3,1');
+    Route::post('/sms/send-to-carpet/{id}', 'sendToCarpet')->name('sms.sendToCarpet')->middleware('throttle:10,1');
     Route::get('/sms/balance', 'getBalance')->name('sms.balance');
     Route::get('/sms/history', 'history')->name('sms.history');
     Route::get('/sms/statistics', 'statistics')->name('sms.statistics');

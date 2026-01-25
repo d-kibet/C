@@ -8,6 +8,13 @@ use Illuminate\Database\Eloquent\Model;
 class Mpesa extends Model
 {
     use HasFactory;
-    protected $guarded = [];
+
+    protected $fillable = [
+        'date',
+        'cash',
+        'float',
+        'working',
+        'account',
+    ];
 
 }

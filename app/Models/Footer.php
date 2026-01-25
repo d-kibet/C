@@ -8,5 +8,14 @@ use Illuminate\Database\Eloquent\Model;
 class Footer extends Model
 {
     use HasFactory;
-    protected $guarded = [];
+
+    protected $fillable = [
+        'number',
+        'short_description',
+        'adress',
+        'email',
+        'facebook',
+        'twitter',
+        'copyright',
+    ];
 }

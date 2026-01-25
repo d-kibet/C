@@ -10,7 +10,23 @@ class Carpet extends Model
 {
     use HasFactory, Auditable;
     
-    protected $guarded = [];
+    protected $fillable = [
+        'uniqueid',
+        'name',
+        'size',
+        'price',
+        'phone',
+        'location',
+        'date_received',
+        'date_delivered',
+        'payment_status',
+        'transaction_code',
+        'delivered',
+        'follow_up_due_at',
+        'follow_up_stage',
+        'last_notified_at',
+        'resolved_at',
+    ];
 
     protected function getAuditTags(): array
     {

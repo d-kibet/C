@@ -11,7 +11,15 @@ class ExpenseCategory extends Model
 {
     use HasFactory, Auditable;
 
-    protected $guarded = [];
+    protected $fillable = [
+        'name',
+        'icon_class',
+        'color_code',
+        'budget_limit',
+        'requires_approval',
+        'is_active',
+        'sort_order',
+    ];
 
     protected $casts = [
         'budget_limit' => 'decimal:2',

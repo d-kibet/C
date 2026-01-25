@@ -138,21 +138,35 @@ class CarpetController extends Controller
     }
 
     public function UpdateCarpet(Request $request){
-        $carpet_id = $request->id;
+        $validated = $request->validate([
+            'id' => 'required|exists:carpets,id',
+            'uniqueid' => 'required|string|max:200',
+            'name' => 'required|string|max:200',
+            'size' => 'required|string|max:200',
+            'price' => 'required|numeric|min:0',
+            'phone' => 'required|string|max:15',
+            'location' => 'required|string|max:400',
+            'date_received' => 'required|date',
+            'date_delivered' => 'required|date',
+            'payment_status' => 'required|in:Paid,Not Paid',
+            'transaction_code' => 'nullable|string|max:255',
+            'delivered' => 'required|in:Delivered,Not Delivered',
+        ]);
+
+        $carpet_id = $validated['id'];
 
         Carpet::findOrFail($carpet_id)->update([
-             'uniqueid' => $request->uniqueid,
-             'name' => $request->name,
-             'size' => $request->size,
-             'price' => $request->price,
-             'phone' => $request->phone,
-             'location' => $request->location,
-             'date_received' => $request->date_received,
-             'date_delivered' => $request->date_delivered,
-             'payment_status' => $request->payment_status,
-             'transaction_code' => $request->transaction_code,
-             'delivered' => $request->delivered,
-             'created_at' => Carbon::now(),
+             'uniqueid' => $validated['uniqueid'],
+             'name' => $validated['name'],
+             'size' => $validated['size'],
+             'price' => $validated['price'],
+             'phone' => $validated['phone'],
+             'location' => $validated['location'],
+             'date_received' => $validated['date_received'],
+             'date_delivered' => $validated['date_delivered'],
+             'payment_status' => $validated['payment_status'],
+             'transaction_code' => $validated['transaction_code'],
+             'delivered' => $validated['delivered'],
         ]);
 
         // Clean up overdue notifications when item is marked as delivered

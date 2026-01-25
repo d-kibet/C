@@ -91,6 +91,10 @@
                         @endif
 
                         @if(Auth::user()->can('mpesa.compare'))
+                        <li><a href="{{ route('reports.carpets.pending') }}">Pending & Aging</a></li>
+                        @endif
+
+                        @if(Auth::user()->can('mpesa.compare'))
                         <li><a href="{{ route('reports.laundry.today') }}">Laundry Report</a></li>
                         @endif
 

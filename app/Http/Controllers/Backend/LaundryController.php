@@ -23,20 +23,19 @@ class LaundryController extends Controller
 
     public function StoreLaundry(Request $request){
         $validateData = $request->validate([
-            'name' => 'required|max:200',
-            'phone' => 'required|max:200',
-            'location' => 'required|max:200',
-            'unique_id' => 'required|max:200',
+            'name' => 'required|string|max:200',
+            'phone' => 'required|string|max:15',
+            'location' => 'required|string|max:200',
+            'unique_id' => 'required|string|max:200',
             'date_received' => 'required|date',
             'date_delivered' => 'required|date',
-            'quantity' => 'required',
-            'item_description' => 'required|max:200',
-            'weight' => 'required|max:200',
-            'price' => 'required|max:200',
-            'total' => 'required|max:200',
-            'delivered' => 'required|max:200',
-            'payment_status' => 'required|max:200',
-
+            'quantity' => 'required|integer|min:1',
+            'item_description' => 'required|string|max:200',
+            'weight' => 'required|numeric|min:0',
+            'price' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+            'delivered' => 'required|in:Delivered,Not Delivered',
+            'payment_status' => 'required|in:Paid,Not Paid',
        ]);
 
        $laundry = Laundry::create(array_merge($validateData, [
@@ -59,23 +58,39 @@ class LaundryController extends Controller
     }
 
     public function UpdateLaundry(Request $request){
-        $laundry_id = $request->id;
+        $validated = $request->validate([
+            'id' => 'required|exists:laundries,id',
+            'name' => 'required|string|max:200',
+            'phone' => 'required|string|max:15',
+            'location' => 'required|string|max:200',
+            'unique_id' => 'required|string|max:200',
+            'date_received' => 'required|date',
+            'date_delivered' => 'required|date',
+            'quantity' => 'required|integer|min:1',
+            'item_description' => 'required|string|max:200',
+            'weight' => 'required|numeric|min:0',
+            'price' => 'required|numeric|min:0',
+            'total' => 'required|numeric|min:0',
+            'delivered' => 'required|in:Delivered,Not Delivered',
+            'payment_status' => 'required|in:Paid,Not Paid',
+        ]);
+
+        $laundry_id = $validated['id'];
 
         Laundry::findOrFail($laundry_id)->update([
-            'name' => $request->name,
-            'phone' => $request->phone,
-            'location' => $request->location,
-            'unique_id' => $request->unique_id,
-             'date_received' => $request->date_received,
-             'date_delivered' => $request->date_delivered,
-             'quantity' => $request->quantity,
-             'item_description' => $request->item_description,
-             'weight' => $request->weight,
-             'price' => $request->price,
-             'total' => $request->total,
-             'delivered' => $request->delivered,
-             'payment_status' => $request->payment_status,
-             'created_at' => Carbon::now(),
+            'name' => $validated['name'],
+            'phone' => $validated['phone'],
+            'location' => $validated['location'],
+            'unique_id' => $validated['unique_id'],
+            'date_received' => $validated['date_received'],
+            'date_delivered' => $validated['date_delivered'],
+            'quantity' => $validated['quantity'],
+            'item_description' => $validated['item_description'],
+            'weight' => $validated['weight'],
+            'price' => $validated['price'],
+            'total' => $validated['total'],
+            'delivered' => $validated['delivered'],
+            'payment_status' => $validated['payment_status'],
         ]);
 
         // Clean up overdue notifications when item is marked as delivered

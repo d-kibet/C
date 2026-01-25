@@ -10,7 +10,25 @@ class Laundry extends Model
 {
     use HasFactory, Auditable;
     
-    protected $guarded = [];
+    protected $fillable = [
+        'name',
+        'phone',
+        'location',
+        'unique_id',
+        'date_received',
+        'date_delivered',
+        'quantity',
+        'item_description',
+        'weight',
+        'price',
+        'total',
+        'delivered',
+        'payment_status',
+        'follow_up_due_at',
+        'follow_up_stage',
+        'last_notified_at',
+        'resolved_at',
+    ];
 
     protected function getAuditTags(): array
     {
