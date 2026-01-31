@@ -38,34 +38,15 @@
                                     <i class="mdi mdi-account-circle me-1"></i> Add Laundry
                                 </h5>
                                 <div class="row">
-                                    <!-- Customer Name -->
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Customer Name</label>
-                                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror">
-                                            @error('name')
-                                                <span class="text-danger"> {{ $message }} </span>
-                                            @enderror
-                                        </div>
-                                    </div>
-
                                     <!-- Customer Phone Number -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Customer Phone Number</label>
-                                            <input type="text" name="phone" class="form-control @error('phone') is-invalid @enderror">
+                                            <div class="input-group">
+                                                <input type="text" id="phone" name="phone" class="form-control @error('phone') is-invalid @enderror" placeholder="Enter phone to auto-fill customer">
+                                                <span class="input-group-text" id="phoneStatus" style="display:none;"></span>
+                                            </div>
                                             @error('phone')
-                                                <span class="text-danger"> {{ $message }} </span>
-                                            @enderror
-                                        </div>
-                                    </div>
-
-                                    <!-- Customer Location -->
-                                    <div class="col-md-6">
-                                        <div class="mb-3">
-                                            <label class="form-label">Customer Location</label>
-                                            <input type="text" name="location" class="form-control @error('location') is-invalid @enderror">
-                                            @error('location')
                                                 <span class="text-danger"> {{ $message }} </span>
                                             @enderror
                                         </div>
@@ -75,8 +56,33 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Customer Unique ID</label>
-                                            <input type="text" name="unique_id" class="form-control @error('unique_id') is-invalid @enderror">
+                                            <div class="input-group">
+                                                <input type="text" id="unique_id" name="unique_id" class="form-control @error('unique_id') is-invalid @enderror" placeholder="Enter ID to auto-fill customer">
+                                                <span class="input-group-text" id="uniqueIdStatus" style="display:none;"></span>
+                                            </div>
                                             @error('unique_id')
+                                                <span class="text-danger"> {{ $message }} </span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <!-- Customer Name -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Customer Name</label>
+                                            <input type="text" id="name" name="name" class="form-control @error('name') is-invalid @enderror">
+                                            @error('name')
+                                                <span class="text-danger"> {{ $message }} </span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <!-- Customer Location -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Customer Location</label>
+                                            <input type="text" id="location" name="location" class="form-control @error('location') is-invalid @enderror">
+                                            @error('location')
                                                 <span class="text-danger"> {{ $message }} </span>
                                             @enderror
                                         </div>
@@ -209,3 +215,137 @@
 
 
 @endsection
+
+@push('scripts')
+<script>
+$(document).ready(function() {
+    var phoneTimer = null;
+    var uniqueIdTimer = null;
+    var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+    // ── Phone Number Lookup ──
+    $('#phone').on('input', function() {
+        clearTimeout(phoneTimer);
+        var phone = $(this).val().trim();
+        if (phone.length >= 6) {
+            $('#phoneStatus').html('<i class="mdi mdi-loading mdi-spin"></i>').show();
+            phoneTimer = setTimeout(function() {
+                lookupByPhone(phone);
+            }, 800);
+        } else {
+            $('#phoneStatus').hide();
+        }
+    });
+
+    $('#phone').on('blur', function() {
+        var phone = $(this).val().trim();
+        if (phone.length >= 6) {
+            lookupByPhone(phone);
+        }
+    });
+
+    function lookupByPhone(phone) {
+        fetch("{{ route('customer.byPhone') }}?phone=" + encodeURIComponent(phone), {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.found) {
+                $('#name').val(data.name);
+                $('#location').val(data.location);
+                if (data.uniqueid) {
+                    $('#unique_id').val(data.uniqueid);
+                }
+
+                // Visual feedback
+                highlightField('#name');
+                highlightField('#location');
+                if (data.uniqueid) highlightField('#unique_id');
+
+                $('#phoneStatus').html('<span class="badge bg-success">Returning Customer</span>').show();
+                toastr.success('Customer details loaded! Please fill in the remaining fields.');
+
+                setTimeout(function() { $('#phoneStatus').fadeOut(); }, 3000);
+            } else {
+                $('#phoneStatus').hide();
+            }
+        })
+        .catch(function() {
+            $('#phoneStatus').hide();
+        });
+    }
+
+    // ── Unique ID Lookup ──
+    $('#unique_id').on('input', function() {
+        clearTimeout(uniqueIdTimer);
+        var uid = $(this).val().trim();
+        if (uid.length >= 2) {
+            $('#uniqueIdStatus').html('<i class="mdi mdi-loading mdi-spin"></i>').show();
+            uniqueIdTimer = setTimeout(function() {
+                lookupByUniqueId(uid);
+            }, 800);
+        } else {
+            $('#uniqueIdStatus').hide();
+        }
+    });
+
+    $('#unique_id').on('blur', function() {
+        var uid = $(this).val().trim();
+        if (uid.length >= 2) {
+            lookupByUniqueId(uid);
+        }
+    });
+
+    function lookupByUniqueId(uid) {
+        fetch("{{ route('customer.byUniqueId') }}?uniqueid=" + encodeURIComponent(uid), {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+        .then(function(response) { return response.json(); })
+        .then(function(data) {
+            if (data.found) {
+                $('#name').val(data.name);
+                $('#location').val(data.location);
+                if (data.phone) {
+                    $('#phone').val(data.phone);
+                    highlightField('#phone');
+                }
+
+                // Visual feedback
+                highlightField('#name');
+                highlightField('#location');
+
+                $('#uniqueIdStatus').html('<span class="badge bg-success">Returning Customer</span>').show();
+                $('#phoneStatus').html('<span class="badge bg-success">Returning Customer</span>').show();
+                toastr.success('Customer details loaded from existing record!');
+
+                setTimeout(function() {
+                    $('#uniqueIdStatus').fadeOut();
+                    $('#phoneStatus').fadeOut();
+                }, 3000);
+            } else {
+                $('#uniqueIdStatus').hide();
+            }
+        })
+        .catch(function() {
+            $('#uniqueIdStatus').hide();
+        });
+    }
+
+    // Highlight auto-filled fields briefly
+    function highlightField(selector) {
+        $(selector).css('border-color', '#28a745');
+        setTimeout(function() {
+            $(selector).css('border-color', '');
+        }, 3000);
+    }
+});
+</script>
+@endpush

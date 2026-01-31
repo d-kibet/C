@@ -48,13 +48,14 @@ class NotificationManager
         }
 
         // SMART CONSOLIDATION: Find existing unread notification for this item
+        // Using CAST to ensure proper type comparison for service_id
         $existingNotification = DB::table('notifications')
             ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
             ->where('notifiable_id', $user->id)
             ->where('notifiable_type', 'App\\Models\\User')
             ->whereNull('read_at')
-            ->whereRaw("JSON_EXTRACT(data, '$.service_type') = ?", [strtolower($serviceType)])
-            ->whereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$serviceId])
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = ?", [strtolower($serviceType)])
+            ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) = ?", [(int)$serviceId])
             ->first();
 
         if ($existingNotification) {
@@ -128,6 +129,7 @@ class NotificationManager
     /**
      * Clean up notifications for delivered items
      * This runs BEFORE creating new notifications to keep database clean
+     * Uses batched processing to avoid lock timeouts
      */
     public function cleanupDeliveredNotifications(): array
     {
@@ -136,38 +138,35 @@ class NotificationManager
             'laundry' => 0,
         ];
 
-        // Cleanup carpet notifications
+        // Cleanup carpet notifications in batches
         $deliveredCarpetIds = Carpet::where('delivered', 'Delivered')->pluck('id')->toArray();
 
         if (!empty($deliveredCarpetIds)) {
-            $deleted = DB::table('notifications')
-                ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-                ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'carpet'")
-                ->where(function($query) use ($deliveredCarpetIds) {
-                    foreach ($deliveredCarpetIds as $carpetId) {
-                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$carpetId]);
-                    }
-                })
-                ->delete();
+            // Process in batches of 50 to avoid lock timeout
+            foreach (array_chunk($deliveredCarpetIds, 50) as $batch) {
+                $deleted = DB::table('notifications')
+                    ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = 'carpet'")
+                    ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) IN (" . implode(',', $batch) . ")")
+                    ->delete();
 
-            $stats['carpet'] = $deleted;
+                $stats['carpet'] += $deleted;
+            }
         }
 
-        // Cleanup laundry notifications
+        // Cleanup laundry notifications in batches
         $deliveredLaundryIds = Laundry::where('delivered', 'Delivered')->pluck('id')->toArray();
 
         if (!empty($deliveredLaundryIds)) {
-            $deleted = DB::table('notifications')
-                ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-                ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'laundry'")
-                ->where(function($query) use ($deliveredLaundryIds) {
-                    foreach ($deliveredLaundryIds as $laundryId) {
-                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$laundryId]);
-                    }
-                })
-                ->delete();
+            foreach (array_chunk($deliveredLaundryIds, 50) as $batch) {
+                $deleted = DB::table('notifications')
+                    ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = 'laundry'")
+                    ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) IN (" . implode(',', $batch) . ")")
+                    ->delete();
 
-            $stats['laundry'] = $deleted;
+                $stats['laundry'] += $deleted;
+            }
         }
 
         if ($stats['carpet'] + $stats['laundry'] > 0) {
@@ -226,63 +225,61 @@ class NotificationManager
 
     /**
      * Remove orphaned notifications (items no longer exist)
+     * Uses batched processing to avoid lock timeouts
      */
     public function cleanupOrphanedNotifications(): array
     {
         $stats = ['carpet' => 0, 'laundry' => 0];
 
-        // Get carpet notification IDs using select with alias, then pluck
+        // Get carpet notification IDs
         $carpetNotificationIds = DB::table('notifications')
             ->select(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) as service_id"))
             ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-            ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'carpet'")
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = 'carpet'")
             ->pluck('service_id')
             ->unique()
-            ->filter() // Remove nulls
+            ->filter()
             ->toArray();
 
         $existingCarpetIds = Carpet::pluck('id')->toArray();
         $orphanedCarpetIds = array_diff($carpetNotificationIds, $existingCarpetIds);
 
         if (!empty($orphanedCarpetIds)) {
-            $deleted = DB::table('notifications')
-                ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-                ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'carpet'")
-                ->where(function($query) use ($orphanedCarpetIds) {
-                    foreach ($orphanedCarpetIds as $orphanedId) {
-                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$orphanedId]);
-                    }
-                })
-                ->delete();
+            // Process in batches
+            foreach (array_chunk($orphanedCarpetIds, 50) as $batch) {
+                $deleted = DB::table('notifications')
+                    ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = 'carpet'")
+                    ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) IN (" . implode(',', $batch) . ")")
+                    ->delete();
 
-            $stats['carpet'] = $deleted;
+                $stats['carpet'] += $deleted;
+            }
         }
 
         // Same for laundry
         $laundryNotificationIds = DB::table('notifications')
             ->select(DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) as service_id"))
             ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-            ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'laundry'")
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = 'laundry'")
             ->pluck('service_id')
             ->unique()
-            ->filter() // Remove nulls
+            ->filter()
             ->toArray();
 
         $existingLaundryIds = Laundry::pluck('id')->toArray();
         $orphanedLaundryIds = array_diff($laundryNotificationIds, $existingLaundryIds);
 
         if (!empty($orphanedLaundryIds)) {
-            $deleted = DB::table('notifications')
-                ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-                ->whereRaw("JSON_EXTRACT(data, '$.service_type') = 'laundry'")
-                ->where(function($query) use ($orphanedLaundryIds) {
-                    foreach ($orphanedLaundryIds as $orphanedId) {
-                        $query->orWhereRaw("JSON_EXTRACT(data, '$.service_id') = ?", [$orphanedId]);
-                    }
-                })
-                ->delete();
+            foreach (array_chunk($orphanedLaundryIds, 50) as $batch) {
+                $deleted = DB::table('notifications')
+                    ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = 'laundry'")
+                    ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) IN (" . implode(',', $batch) . ")")
+                    ->delete();
 
-            $stats['laundry'] = $deleted;
+                $stats['laundry'] += $deleted;
+            }
         }
 
         if ($stats['carpet'] + $stats['laundry'] > 0) {
@@ -314,5 +311,66 @@ class NotificationManager
                 'low' => DB::table('notifications')->where('priority', 'low')->count(),
             ],
         ];
+    }
+
+    /**
+     * Consolidate duplicate notifications - keeps only the most recent per item per user
+     * This is a cleanup method to fix existing duplicates
+     */
+    public function consolidateDuplicates(): array
+    {
+        $stats = ['carpet' => 0, 'laundry' => 0];
+
+        foreach (['carpet', 'laundry'] as $serviceType) {
+            // Find all unique combinations of user + service_id with multiple notifications
+            $duplicates = DB::table('notifications')
+                ->select([
+                    'notifiable_id',
+                    DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) as service_id"),
+                    DB::raw('COUNT(*) as count'),
+                    DB::raw('MAX(created_at) as latest_created')
+                ])
+                ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
+                ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = ?", [$serviceType])
+                ->groupBy('notifiable_id', DB::raw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED)"))
+                ->having('count', '>', 1)
+                ->get();
+
+            foreach ($duplicates as $duplicate) {
+                // Delete all but the most recent notification for this item/user combo
+                $deleted = DB::table('notifications')
+                    ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
+                    ->where('notifiable_id', $duplicate->notifiable_id)
+                    ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = ?", [$serviceType])
+                    ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) = ?", [$duplicate->service_id])
+                    ->where('created_at', '<', $duplicate->latest_created)
+                    ->delete();
+
+                $stats[$serviceType] += $deleted;
+            }
+        }
+
+        if ($stats['carpet'] + $stats['laundry'] > 0) {
+            Log::info('Consolidated duplicate notifications', $stats);
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Full cleanup - runs all cleanup methods
+     */
+    public function runFullCleanup(): array
+    {
+        $stats = [
+            'delivered' => $this->cleanupDeliveredNotifications(),
+            'expired' => $this->cleanupExpiredNotifications(),
+            'orphaned' => $this->cleanupOrphanedNotifications(),
+            'duplicates' => $this->consolidateDuplicates(),
+        ];
+
+        Log::info('Full notification cleanup completed', $stats);
+
+        return $stats;
     }
 }

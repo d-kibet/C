@@ -110,16 +110,6 @@
     </div><!-- end container-fluid -->
 </div><!-- end page-content -->
 
-{{-- Optional: DataTables initialization to preserve server-side ordering --}}
-@push('scripts')
-<script>
-$(document).ready(function(){
-    $('#myTable').DataTable({
-        order: [], // This preserves the server-side ordering
-        responsive: true
-    });
-});
-</script>
-@endpush
+{{-- DataTables is initialized globally in admin_master.blade.php --}}
 
 @endsection

@@ -324,11 +324,15 @@ class CarpetController extends Controller
         }
 
         if ($customer) {
+            // Laundry uses 'unique_id', Carpet uses 'uniqueid'
+            $uid = $serviceType === 'laundry' ? $customer->unique_id : $customer->uniqueid;
+
             return response()->json([
                 'found' => true,
                 'name' => $customer->name,
                 'location' => $customer->location,
                 'phone' => $customer->phone,
+                'uniqueid' => $uid ?? '',
                 'size' => $customer->size ?? '',
                 'service_type' => $serviceType,
             ]);
@@ -352,19 +356,21 @@ class CarpetController extends Controller
         $customer = Carpet::where('uniqueid', $uniqueId)->first();
         $serviceType = 'carpet';
 
-        // If not found in carpets, check laundry
+        // If not found in carpets, check laundry (column is 'unique_id')
         if (!$customer) {
-            $customer = \App\Models\Laundry::where('uniqueid', $uniqueId)->first();
+            $customer = \App\Models\Laundry::where('unique_id', $uniqueId)->first();
             $serviceType = 'laundry';
         }
 
         if ($customer) {
+            $uid = $serviceType === 'laundry' ? $customer->unique_id : $customer->uniqueid;
+
             return response()->json([
                 'found' => true,
                 'name' => $customer->name,
                 'location' => $customer->location,
                 'phone' => $customer->phone,
-                'uniqueid' => $customer->uniqueid,
+                'uniqueid' => $uid ?? '',
                 'size' => $customer->size ?? '',
                 'service_type' => $serviceType,
             ]);

@@ -55,6 +55,20 @@
             padding: 10px 0;
             text-align: center;
         }
+        /* Copy Protection */
+        body {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        /* Allow selection in form inputs and textareas */
+        input, textarea, select, [contenteditable="true"] {
+            -webkit-user-select: text;
+            -moz-user-select: text;
+            -ms-user-select: text;
+            user-select: text;
+        }
     </style>
 </head>
 <body data-topbar="dark" style="padding-top: 10px;">
@@ -103,10 +117,13 @@
     <script src="{{ asset('backend/assets/js/app.js') }}"></script>
     <script>
         $(document).ready(function() {
-            $('#myTable').DataTable({
-                order: [[0, 'desc']],
-                responsive: true
-            });
+            // Only initialize if #myTable exists and is not already a DataTable
+            if ($('#myTable').length && !$.fn.DataTable.isDataTable('#myTable')) {
+                $('#myTable').DataTable({
+                    order: [[0, 'desc']],
+                    responsive: true
+                });
+            }
         });
     </script>
     <!-- Additional Plugins -->
@@ -731,6 +748,64 @@
         animation: spin 1s linear infinite;
     }
     </style>
+
+    <!-- Copy Protection -->
+    <script>
+    (function() {
+        // Disable right-click context menu
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+
+        // Disable keyboard shortcuts for copy, select-all, view-source, dev tools
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+C, Ctrl+A, Ctrl+U
+            if (e.ctrlKey && (e.key === 'c' || e.key === 'a' || e.key === 'u')) {
+                // Allow Ctrl+C and Ctrl+A inside form inputs/textareas
+                var tag = e.target.tagName.toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) {
+                    return;
+                }
+                e.preventDefault();
+            }
+
+            // F12
+            if (e.key === 'F12') {
+                e.preventDefault();
+            }
+
+            // Ctrl+Shift+I (Inspector), Ctrl+Shift+J (Console), Ctrl+Shift+C (Element picker)
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i' || e.key === 'J' || e.key === 'j' || e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+            }
+
+            // Ctrl+S (Save page)
+            if (e.ctrlKey && (e.key === 's' || e.key === 'S')) {
+                e.preventDefault();
+            }
+
+            // PrintScreen
+            if (e.key === 'PrintScreen') {
+                e.preventDefault();
+            }
+
+            // Ctrl+P (Print)
+            if (e.ctrlKey && (e.key === 'p' || e.key === 'P')) {
+                e.preventDefault();
+            }
+        });
+
+        // Disable drag
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+        });
+
+        // Disable drop
+        document.addEventListener('drop', function(e) {
+            e.preventDefault();
+        });
+    })();
+    </script>
 
     @stack('scripts')
 </body>

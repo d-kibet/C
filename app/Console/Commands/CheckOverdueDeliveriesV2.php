@@ -118,6 +118,10 @@ class CheckOverdueDeliveriesV2 extends Command
         // Clean orphaned
         $orphanedStats = $this->notificationManager->cleanupOrphanedNotifications();
         $this->line("  ✓ Orphaned notifications cleaned: Carpets={$orphanedStats['carpet']}, Laundry={$orphanedStats['laundry']}");
+
+        // Consolidate duplicates (removes duplicate notifications per item/user)
+        $duplicateStats = $this->notificationManager->consolidateDuplicates();
+        $this->line("  ✓ Duplicates consolidated: Carpets={$duplicateStats['carpet']}, Laundry={$duplicateStats['laundry']}");
     }
 
     protected function processCarpets($cutoffDate, $gracePeriodDays, $adminUsers, $batchSize, $maxNotifications, $notificationInterval, &$notificationsSent): array
@@ -253,7 +257,30 @@ class CheckOverdueDeliveriesV2 extends Command
 
     protected function getAdminUsers()
     {
-        return User::select(['id', 'name', 'email'])->get();
+        // Only get users who have admin permissions (not all users!)
+        // This prevents creating duplicate notifications for every user in the system
+        $adminUsers = User::select(['id', 'name', 'email'])
+            ->where(function($query) {
+                // Check for Admin or SuperAdmin role
+                $query->whereHas('roles', function($q) {
+                    $q->whereIn('name', ['Admin', 'SuperAdmin']);
+                });
+            })
+            ->orWhere(function($query) {
+                // Fallback: check for admin.all permission directly
+                $query->whereHas('permissions', function($q) {
+                    $q->where('name', 'admin.all');
+                });
+            })
+            ->get();
+
+        // If no admin users found, log warning and fallback to first user (system admin)
+        if ($adminUsers->isEmpty()) {
+            Log::warning('No admin users found for overdue notifications. Falling back to first user.');
+            $adminUsers = User::select(['id', 'name', 'email'])->limit(1)->get();
+        }
+
+        return $adminUsers;
     }
 
     protected function calculateOverdueDays($dateReceived, $gracePeriodDays)
