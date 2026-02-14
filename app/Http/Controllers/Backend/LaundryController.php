@@ -226,25 +226,36 @@ class LaundryController extends Controller
     // Fetch all Laundry records.
     $laundryRecords = \App\Models\Laundry::all();
     $filename = 'laundry_all.csv';
+    $includePhone = Gate::allows('admin.all');
 
     $headers = [
         'Content-Type' => 'text/csv',
         'Content-Disposition' => 'attachment; filename=' . $filename,
     ];
 
-    $columns = ['Name', 'Phone', 'Price', 'Total', 'Date Received'];
+    $columns = $includePhone
+        ? ['Name', 'Phone', 'Price', 'Total', 'Date Received']
+        : ['Name', 'Price', 'Total', 'Date Received'];
 
-    $callback = function() use ($laundryRecords, $columns) {
+    $callback = function() use ($laundryRecords, $columns, $includePhone) {
         $file = fopen('php://output', 'w');
         fputcsv($file, $columns);
         foreach ($laundryRecords as $record) {
-            fputcsv($file, [
-                $record->name,
-                $record->phone,
-                $record->price,
-                $record->total,
-                $record->date_received,
-            ]);
+            $row = $includePhone
+                ? [
+                    $record->name,
+                    $record->phone,
+                    $record->price,
+                    $record->total,
+                    $record->date_received,
+                ]
+                : [
+                    $record->name,
+                    $record->price,
+                    $record->total,
+                    $record->date_received,
+                ];
+            fputcsv($file, $row);
         }
         fclose($file);
     };
@@ -329,9 +340,9 @@ public function viewLaundryByMonth(Request $request)
 
             // CSV header row - conditionally include Phone
             if ($includePhone) {
-                fputcsv($file, ['Unique ID', 'Phone', 'Price', 'Payment Status', 'Date Received']);
+                fputcsv($file, ['Unique ID', 'Phone', 'Amount (KES)', 'Payment Status', 'Date Received']);
             } else {
-                fputcsv($file, ['Unique ID', 'Price', 'Payment Status', 'Date Received']);
+                fputcsv($file, ['Unique ID', 'Amount (KES)', 'Payment Status', 'Date Received']);
             }
 
             // Rows - conditionally include phone
@@ -340,14 +351,14 @@ public function viewLaundryByMonth(Request $request)
                     fputcsv($file, [
                         $record->unique_id,
                         $record->phone,
-                        $record->price,
+                        $record->total,
                         $record->payment_status,
                         $record->date_received,
                     ]);
                 } else {
                     fputcsv($file, [
                         $record->unique_id,
-                        $record->price,
+                        $record->total,
                         $record->payment_status,
                         $record->date_received,
                     ]);
@@ -398,9 +409,9 @@ public function viewLaundryByMonth(Request $request)
 
             // CSV header - conditionally include Phone
             if ($includePhone) {
-                fputcsv($file, ['Unique ID', 'Phone', 'Price', 'Payment Status', 'Date Received']);
+                fputcsv($file, ['Unique ID', 'Phone', 'Amount (KES)', 'Payment Status', 'Date Received']);
             } else {
-                fputcsv($file, ['Unique ID', 'Price', 'Payment Status', 'Date Received']);
+                fputcsv($file, ['Unique ID', 'Amount (KES)', 'Payment Status', 'Date Received']);
             }
 
             // Rows - conditionally include phone
@@ -409,14 +420,14 @@ public function viewLaundryByMonth(Request $request)
                     fputcsv($file, [
                         $record->unique_id,
                         $record->phone,
-                        $record->price,
+                        $record->total,
                         $record->payment_status,
                         $record->date_received,
                     ]);
                 } else {
                     fputcsv($file, [
                         $record->unique_id,
-                        $record->price,
+                        $record->total,
                         $record->payment_status,
                         $record->date_received,
                     ]);

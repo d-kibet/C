@@ -8,6 +8,7 @@ use App\Models\Laundry;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 class CustomerRetentionController extends Controller
 {
@@ -244,38 +245,57 @@ class CustomerRetentionController extends Controller
 
     private function exportCsv($customers, $filename)
     {
+        $includePhone = Gate::allows('admin.all');
+
         $headers = [
             'Content-Type' => 'text/csv',
             'Content-Disposition' => "attachment; filename={$filename}.csv",
         ];
 
-        $callback = function() use ($customers) {
+        $columns = $includePhone
+            ? ['Phone', 'Name', 'Location', 'Service Type', 'Last Service Date',
+               'Total Services', 'Total Value (KES)', 'Days Since Last Service',
+               'Recent Unique IDs', 'Customer Tier']
+            : ['Name', 'Location', 'Service Type', 'Last Service Date',
+               'Total Services', 'Total Value (KES)', 'Days Since Last Service',
+               'Recent Unique IDs', 'Customer Tier'];
+
+        $callback = function() use ($customers, $columns, $includePhone) {
             $file = fopen('php://output', 'w');
 
             // Header row
-            fputcsv($file, [
-                'Phone', 'Name', 'Location', 'Service Type', 'Last Service Date',
-                'Total Services', 'Total Value (KES)', 'Days Since Last Service',
-                'Recent Unique IDs', 'Customer Tier'
-            ]);
+            fputcsv($file, $columns);
 
             // Data rows
             foreach ($customers as $customer) {
                 $daysSinceLastService = Carbon::parse($customer->last_service_date)->diffInDays(now());
                 $customerTier = $this->getCustomerTier($customer->total_value);
 
-                fputcsv($file, [
-                    $customer->phone,
-                    $customer->name,
-                    $customer->location,
-                    $customer->service_type,
-                    Carbon::parse($customer->last_service_date)->format('Y-m-d'),
-                    $customer->total_services,
-                    number_format($customer->total_value, 2),
-                    $daysSinceLastService,
-                    $customer->recent_unique_ids,
-                    $customerTier
-                ]);
+                $row = $includePhone
+                    ? [
+                        $customer->phone,
+                        $customer->name,
+                        $customer->location,
+                        $customer->service_type,
+                        Carbon::parse($customer->last_service_date)->format('Y-m-d'),
+                        $customer->total_services,
+                        number_format($customer->total_value, 2),
+                        $daysSinceLastService,
+                        $customer->recent_unique_ids,
+                        $customerTier
+                    ]
+                    : [
+                        $customer->name,
+                        $customer->location,
+                        $customer->service_type,
+                        Carbon::parse($customer->last_service_date)->format('Y-m-d'),
+                        $customer->total_services,
+                        number_format($customer->total_value, 2),
+                        $daysSinceLastService,
+                        $customer->recent_unique_ids,
+                        $customerTier
+                    ];
+                fputcsv($file, $row);
             }
 
             fclose($file);

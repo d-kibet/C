@@ -384,6 +384,7 @@ class CarpetController extends Controller
     // Fetch all Carpet records.
     $carpets = \App\Models\Carpet::all();
     $filename = 'carpets_all.csv';
+    $includePhone = Gate::allows('admin.all');
 
     // Define headers including Content-Disposition.
     $headers = [
@@ -391,22 +392,33 @@ class CarpetController extends Controller
         'Content-Disposition' => 'attachment; filename=' . $filename,
     ];
 
-    $columns = ['Unique ID', 'Size', 'Price', 'Payment Status', 'Date Received'];
+    $columns = $includePhone
+        ? ['Unique ID', 'Size', 'Price', 'Phone', 'Payment Status', 'Date Received']
+        : ['Unique ID', 'Size', 'Price', 'Payment Status', 'Date Received'];
 
-    $callback = function() use ($carpets, $columns) {
+    $callback = function() use ($carpets, $columns, $includePhone) {
         $file = fopen('php://output', 'w');
         // Output header row.
         fputcsv($file, $columns);
         // Output each carpet record.
         foreach ($carpets as $carpet) {
-            fputcsv($file, [
-                $carpet->uniqueid,
-                $carpet->size,
-                $carpet->price,
-                $carpet->phone,
-                $carpet->payment_status,
-                $carpet->date_received,
-            ]);
+            $row = $includePhone
+                ? [
+                    $carpet->uniqueid,
+                    $carpet->size,
+                    $carpet->price,
+                    $carpet->phone,
+                    $carpet->payment_status,
+                    $carpet->date_received,
+                ]
+                : [
+                    $carpet->uniqueid,
+                    $carpet->size,
+                    $carpet->price,
+                    $carpet->payment_status,
+                    $carpet->date_received,
+                ];
+            fputcsv($file, $row);
         }
         fclose($file);
     };
