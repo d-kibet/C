@@ -21,6 +21,7 @@ class Laundry extends Model
         'item_description',
         'weight',
         'price',
+        'discount',
         'total',
         'delivered',
         'payment_status',

@@ -15,6 +15,7 @@ class Carpet extends Model
         'name',
         'size',
         'price',
+        'discount',
         'phone',
         'location',
         'date_received',

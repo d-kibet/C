@@ -154,6 +154,16 @@
 
     <div class="col-md-6">
         <div class="mb-3">
+            <label for="discount" class="form-label">Discount (KES)</label>
+            <input type="number" name="discount" id="discount" class="form-control @error('discount') is-invalid @enderror" step="any" min="0" value="{{ old('discount', $laundry->discount ?? 0) }}">
+            @error('discount')
+                <span class="text-danger"> {{ $message }} </span>
+            @enderror
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="mb-3">
             <label for="firstname" class="form-label">Total Amount    </label>
             <input type="text" name="total" class="form-control @error('total') is-invalid @enderror" value="{{ $laundry->total }}"  >
              @error('total')

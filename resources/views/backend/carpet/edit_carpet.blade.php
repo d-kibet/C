@@ -123,7 +123,24 @@
                 </div>
             </div>
 
-
+            <!-- Discount (KES) -->
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label for="discount" class="form-label">Discount (KES)</label>
+                    <input
+                        type="number"
+                        name="discount"
+                        id="discount"
+                        class="form-control @error('discount') is-invalid @enderror"
+                        step="any"
+                        min="0"
+                        value="{{ old('discount', $carpet->discount ?? 0) }}"
+                    >
+                    @error('discount')
+                        <span class="text-danger">{{ $message }}</span>
+                    @enderror
+                </div>
+            </div>
 
       <div class="col-md-6">
         <div class="mb-3">
@@ -250,6 +267,7 @@
                         const sizeInput = document.getElementById('size');
                         const multiplierInput = document.getElementById('multiplier');
                         const priceInput = document.getElementById('price');
+                        const discountInput = document.getElementById('discount');
 
                         // On page load, if there is a price value, round it to one decimal place.
                         if (priceInput.value) {
@@ -260,7 +278,6 @@
                             let sizeValue = sizeInput.value.trim();
                             let computedSize = 0;
 
-                            // Check if the size input contains '*' or 'x' (case-insensitive)
                             if (/[x\*]/i.test(sizeValue)) {
                                 const parts = sizeValue.split(/[*x]/i);
                                 if (parts.length === 2) {
@@ -271,24 +288,23 @@
                                     }
                                 }
                             } else {
-                                // Treat the input as a single number
                                 computedSize = parseFloat(sizeValue) || 0;
                             }
 
                             const multiplier = parseFloat(multiplierInput.value) || 0;
-                            const finalPrice = computedSize * multiplier;
+                            const discount = parseFloat(discountInput.value) || 0;
+                            const finalPrice = (computedSize * multiplier) - discount;
 
-                            // Round to one decimal place and update the price input
                             if (!isNaN(finalPrice)) {
-                                priceInput.value = finalPrice.toFixed(1);
+                                priceInput.value = Math.max(0, finalPrice).toFixed(1);
                             } else {
                                 priceInput.value = '';
                             }
                         }
 
-                        // Update price whenever size or multiplier changes
                         sizeInput.addEventListener('input', calculatePrice);
                         multiplierInput.addEventListener('input', calculatePrice);
+                        discountInput.addEventListener('input', calculatePrice);
                     });
                     </script>
 

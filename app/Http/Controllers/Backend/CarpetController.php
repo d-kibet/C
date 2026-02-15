@@ -66,12 +66,13 @@ class CarpetController extends Controller
             $data = [];
             foreach ($carpets as $carpet) {
                 $actions = '';
+                $isLocked = $carpet->payment_status === 'Paid' && $carpet->delivered === 'Delivered';
 
-                if (Gate::allows('carpet.edit')) {
+                if (Gate::allows('carpet.edit') && !$isLocked) {
                     $actions .= '<a href="' . route('edit.carpet', $carpet->id) . '" class="btn btn-secondary btn-sm rounded-pill waves-effect">Edit</a> ';
                 }
 
-                if (Gate::allows('carpet.delete')) {
+                if (Gate::allows('carpet.delete') && (!$isLocked || Gate::allows('admin.all'))) {
                     $actions .= '<a href="' . route('delete.carpet', $carpet->id) . '" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete">Delete</a> ';
                 }
 
@@ -204,6 +205,7 @@ class CarpetController extends Controller
              'payment_status' => 'required',
              'transaction_code' => 'required_if:payment_status,Paid|nullable|string|max:255',
              'delivered' => 'required|max:200',
+             'discount' => 'nullable|numeric|min:0',
 
         ]);
 
@@ -225,6 +227,15 @@ class CarpetController extends Controller
 
     public function EditCarpet($id){
         $carpet = Carpet::FindOrfail($id);
+
+        if ($carpet->payment_status === 'Paid' && $carpet->delivered === 'Delivered') {
+            $notification = array(
+                'message' => 'This record is locked because it has been paid and delivered.',
+                'alert-type' => 'warning'
+            );
+            return redirect()->route('all.carpet')->with($notification);
+        }
+
         return view('backend.carpet.edit_carpet',compact('carpet'));
     }
 
@@ -242,15 +253,26 @@ class CarpetController extends Controller
             'payment_status' => 'required|in:Paid,Not Paid',
             'transaction_code' => 'nullable|string|max:255',
             'delivered' => 'required|in:Delivered,Not Delivered',
+            'discount' => 'nullable|numeric|min:0',
         ]);
 
         $carpet_id = $validated['id'];
+        $carpet = Carpet::findOrFail($carpet_id);
 
-        Carpet::findOrFail($carpet_id)->update([
+        if ($carpet->payment_status === 'Paid' && $carpet->delivered === 'Delivered') {
+            $notification = array(
+                'message' => 'This record is locked because it has been paid and delivered.',
+                'alert-type' => 'warning'
+            );
+            return redirect()->route('all.carpet')->with($notification);
+        }
+
+        $carpet->update([
              'uniqueid' => $validated['uniqueid'],
              'name' => $validated['name'],
              'size' => $validated['size'],
              'price' => $validated['price'],
+             'discount' => $validated['discount'] ?? 0,
              'phone' => $validated['phone'],
              'location' => $validated['location'],
              'date_received' => $validated['date_received'],
@@ -279,8 +301,17 @@ class CarpetController extends Controller
     } // End Method
 
     public function DeleteCarpet($id){
+        $carpet = Carpet::findOrFail($id);
 
-        Carpet::findOrFail($id)->delete();
+        if ($carpet->payment_status === 'Paid' && $carpet->delivered === 'Delivered' && !Gate::allows('admin.all')) {
+            $notification = array(
+                'message' => 'This record is locked because it has been paid and delivered.',
+                'alert-type' => 'warning'
+            );
+            return redirect()->back()->with($notification);
+        }
+
+        $carpet->delete();
 
         $notification = array(
             'message' => 'Carpet Deleted Successfully',
@@ -327,6 +358,16 @@ class CarpetController extends Controller
             // Laundry uses 'unique_id', Carpet uses 'uniqueid'
             $uid = $serviceType === 'laundry' ? $customer->unique_id : $customer->uniqueid;
 
+            // Get last carpet record for this phone to retrieve discount info
+            $lastCarpet = Carpet::where('phone', $phone)
+                ->orderBy('date_received', 'desc')
+                ->first();
+
+            // Get last laundry record for this phone to retrieve discount info
+            $lastLaundry = \App\Models\Laundry::where('phone', $phone)
+                ->orderBy('date_received', 'desc')
+                ->first();
+
             return response()->json([
                 'found' => true,
                 'name' => $customer->name,
@@ -335,6 +376,11 @@ class CarpetController extends Controller
                 'uniqueid' => $uid ?? '',
                 'size' => $customer->size ?? '',
                 'service_type' => $serviceType,
+                'last_carpet_price' => $lastCarpet->price ?? null,
+                'last_carpet_discount' => $lastCarpet->discount ?? 0,
+                'last_laundry_price' => $lastLaundry->price ?? null,
+                'last_laundry_discount' => $lastLaundry->discount ?? 0,
+                'last_laundry_total' => $lastLaundry->total ?? null,
             ]);
         }
 
@@ -364,6 +410,27 @@ class CarpetController extends Controller
 
         if ($customer) {
             $uid = $serviceType === 'laundry' ? $customer->unique_id : $customer->uniqueid;
+            $phone = $customer->phone;
+
+            // Get last carpet record for this customer
+            $lastCarpet = Carpet::where('uniqueid', $uniqueId)
+                ->orderBy('date_received', 'desc')
+                ->first();
+            if (!$lastCarpet && $phone) {
+                $lastCarpet = Carpet::where('phone', $phone)
+                    ->orderBy('date_received', 'desc')
+                    ->first();
+            }
+
+            // Get last laundry record for this customer
+            $lastLaundry = \App\Models\Laundry::where('unique_id', $uniqueId)
+                ->orderBy('date_received', 'desc')
+                ->first();
+            if (!$lastLaundry && $phone) {
+                $lastLaundry = \App\Models\Laundry::where('phone', $phone)
+                    ->orderBy('date_received', 'desc')
+                    ->first();
+            }
 
             return response()->json([
                 'found' => true,
@@ -373,6 +440,11 @@ class CarpetController extends Controller
                 'uniqueid' => $uid ?? '',
                 'size' => $customer->size ?? '',
                 'service_type' => $serviceType,
+                'last_carpet_price' => $lastCarpet->price ?? null,
+                'last_carpet_discount' => $lastCarpet->discount ?? 0,
+                'last_laundry_price' => $lastLaundry->price ?? null,
+                'last_laundry_discount' => $lastLaundry->discount ?? 0,
+                'last_laundry_total' => $lastLaundry->total ?? null,
             ]);
         }
 

@@ -66,12 +66,13 @@ class LaundryController extends Controller
             $rowNumber = $start + 1;
             foreach ($laundries as $laundry) {
                 $actions = '';
+                $isLocked = $laundry->payment_status === 'Paid' && $laundry->delivered === 'Delivered';
 
-                if (Gate::allows('laundry.edit')) {
+                if (Gate::allows('laundry.edit') && !$isLocked) {
                     $actions .= '<a href="' . route('edit.laundry', $laundry->id) . '" class="btn btn-secondary btn-sm rounded-pill waves-effect" title="Edit"><i class="fa fa-pencil"></i></a> ';
                 }
 
-                if (Gate::allows('laundry.delete')) {
+                if (Gate::allows('laundry.delete') && (!$isLocked || Gate::allows('admin.all'))) {
                     $actions .= '<a href="' . route('delete.laundry', $laundry->id) . '" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete" title="Delete"><i class="fa fa-trash"></i></a> ';
                 }
 
@@ -128,6 +129,7 @@ class LaundryController extends Controller
             'total' => 'required|numeric|min:0',
             'delivered' => 'required|in:Delivered,Not Delivered',
             'payment_status' => 'required|in:Paid,Not Paid',
+            'discount' => 'nullable|numeric|min:0',
        ]);
 
        $laundry = Laundry::create(array_merge($validateData, [
@@ -146,6 +148,15 @@ class LaundryController extends Controller
 
     public function EditLaundry($id){
         $laundry = Laundry::FindOrfail($id);
+
+        if ($laundry->payment_status === 'Paid' && $laundry->delivered === 'Delivered') {
+            $notification = array(
+                'message' => 'This record is locked because it has been paid and delivered.',
+                'alert-type' => 'warning'
+            );
+            return redirect()->route('all.laundry')->with($notification);
+        }
+
         return view('backend.laundry.edit_laundry',compact('laundry'));
     }
 
@@ -165,11 +176,21 @@ class LaundryController extends Controller
             'total' => 'required|numeric|min:0',
             'delivered' => 'required|in:Delivered,Not Delivered',
             'payment_status' => 'required|in:Paid,Not Paid',
+            'discount' => 'nullable|numeric|min:0',
         ]);
 
         $laundry_id = $validated['id'];
+        $laundry = Laundry::findOrFail($laundry_id);
 
-        Laundry::findOrFail($laundry_id)->update([
+        if ($laundry->payment_status === 'Paid' && $laundry->delivered === 'Delivered') {
+            $notification = array(
+                'message' => 'This record is locked because it has been paid and delivered.',
+                'alert-type' => 'warning'
+            );
+            return redirect()->route('all.laundry')->with($notification);
+        }
+
+        $laundry->update([
             'name' => $validated['name'],
             'phone' => $validated['phone'],
             'location' => $validated['location'],
@@ -180,6 +201,7 @@ class LaundryController extends Controller
             'item_description' => $validated['item_description'],
             'weight' => $validated['weight'],
             'price' => $validated['price'],
+            'discount' => $validated['discount'] ?? 0,
             'total' => $validated['total'],
             'delivered' => $validated['delivered'],
             'payment_status' => $validated['payment_status'],
@@ -203,8 +225,17 @@ class LaundryController extends Controller
     }
 
     public function DeleteLaundry($id){
+        $laundry = Laundry::findOrFail($id);
 
-        Laundry::findOrFail($id)->delete();
+        if ($laundry->payment_status === 'Paid' && $laundry->delivered === 'Delivered' && !Gate::allows('admin.all')) {
+            $notification = array(
+                'message' => 'This record is locked because it has been paid and delivered.',
+                'alert-type' => 'warning'
+            );
+            return redirect()->back()->with($notification);
+        }
+
+        $laundry->delete();
 
         $notification = array(
             'message' => 'Item Deleted Successfully',

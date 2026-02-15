@@ -116,6 +116,34 @@
                                         </div>
                                     </div>
 
+                                    <!-- Discount (KES) -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label for="discount" class="form-label">Discount (KES)</label>
+                                            <input
+                                                type="number"
+                                                name="discount"
+                                                id="discount"
+                                                class="form-control @error('discount') is-invalid @enderror"
+                                                step="any"
+                                                min="0"
+                                                value="0"
+                                            >
+                                            @error('discount')
+                                                <span class="text-danger">{{ $message }}</span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <!-- Discount Warning Banner -->
+                                    <div class="col-12" id="discount-warning" style="display: none;">
+                                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                            <strong><i class="mdi mdi-alert-circle-outline me-1"></i> Previous Discount Alert:</strong>
+                                            <span id="discount-warning-text"></span>
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                        </div>
+                                    </div>
+
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label for="name" class="form-label">Customer Name </label>
@@ -294,18 +322,18 @@
 }
 </style>
 
-{{-- JavaScript for Automatic Price Calculation --}}
+{{-- JavaScript for Automatic Price Calculation with Discount --}}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const sizeInput = document.getElementById('size');
     const multiplierInput = document.getElementById('multiplier');
     const priceInput = document.getElementById('price');
+    const discountInput = document.getElementById('discount');
 
-    function calculatePrice() {
+    function getBasePrice() {
         let sizeValue = sizeInput.value.trim();
         let computedSize = 0;
 
-        // Check if the size input contains '*' or 'x' (case-insensitive)
         if (/[x\*]/i.test(sizeValue)) {
             const parts = sizeValue.split(/[*x]/i);
             if (parts.length === 2) {
@@ -316,24 +344,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         } else {
-            // Treat the input as a single number
             computedSize = parseFloat(sizeValue) || 0;
         }
 
         const multiplier = parseFloat(multiplierInput.value) || 0;
-        const finalPrice = computedSize * multiplier;
+        return computedSize * multiplier;
+    }
 
-        // Round to one decimal place if it's a valid number
+    function calculatePrice() {
+        const basePrice = getBasePrice();
+        const discount = parseFloat(discountInput.value) || 0;
+        const finalPrice = basePrice - discount;
+
         if (!isNaN(finalPrice)) {
-            priceInput.value = finalPrice.toFixed(1);
+            priceInput.value = Math.max(0, finalPrice).toFixed(1);
         } else {
             priceInput.value = '';
         }
     }
 
-    // Update price whenever size or multiplier changes
     sizeInput.addEventListener('input', calculatePrice);
     multiplierInput.addEventListener('input', calculatePrice);
+    discountInput.addEventListener('input', calculatePrice);
 });
 
 
@@ -405,6 +437,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Show returning customer badge
                 customerStatus.style.display = 'inline-block';
 
+                // Check for previous carpet discount
+                showDiscountWarning(data);
+
                 // Add visual feedback with animation
                 nameInput.classList.add('border-success');
                 locationInput.classList.add('border-success');
@@ -425,6 +460,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // New customer - clear the badge
                 customerStatus.style.display = 'none';
+                document.getElementById('discount-warning').style.display = 'none';
             }
         })
         .catch(error => {
@@ -501,6 +537,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 uniqueIdStatus.style.display = 'inline-block';
                 customerStatus.style.display = 'inline-block';
 
+                // Check for previous carpet discount
+                showDiscountWarning(data);
+
                 // Add visual feedback with animation
                 nameInput.classList.add('border-success');
                 locationInput.classList.add('border-success');
@@ -523,6 +562,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // New customer or ID not found - clear the badge
                 uniqueIdStatus.style.display = 'none';
+                document.getElementById('discount-warning').style.display = 'none';
             }
         })
         .catch(error => {
@@ -545,6 +585,29 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchCustomerByUniqueId(this.value);
     });
 });
+
+// Show discount warning banner for returning customers
+function showDiscountWarning(data) {
+    var warningDiv = document.getElementById('discount-warning');
+    var warningText = document.getElementById('discount-warning-text');
+    var discountInput = document.getElementById('discount');
+
+    var lastDiscount = parseFloat(data.last_carpet_discount) || 0;
+    var lastPrice = parseFloat(data.last_carpet_price) || 0;
+
+    if (lastDiscount > 0) {
+        var fullPrice = lastPrice + lastDiscount;
+        warningText.textContent = 'Previous visit had a KES ' + lastDiscount.toLocaleString() +
+            ' discount (charged KES ' + lastPrice.toLocaleString() + '). Full price was KES ' + fullPrice.toLocaleString() + '.';
+        warningDiv.style.display = 'block';
+
+        // Reset discount to 0 for this visit
+        discountInput.value = 0;
+        discountInput.dispatchEvent(new Event('input'));
+    } else {
+        warningDiv.style.display = 'none';
+    }
+}
 
 </script>
 

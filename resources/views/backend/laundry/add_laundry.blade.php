@@ -147,10 +147,31 @@
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Price</label>
-                                            <input type="text" name="price" class="form-control @error('price') is-invalid @enderror">
+                                            <input type="text" id="laundry_price" name="price" class="form-control @error('price') is-invalid @enderror">
+                                            <small id="previous-rate-helper" class="text-muted" style="display: none;"></small>
                                             @error('price')
                                                 <span class="text-danger"> {{ $message }} </span>
                                             @enderror
+                                        </div>
+                                    </div>
+
+                                    <!-- Discount (KES) -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Discount (KES)</label>
+                                            <input type="number" id="laundry_discount" name="discount" class="form-control @error('discount') is-invalid @enderror" step="any" min="0" value="0">
+                                            @error('discount')
+                                                <span class="text-danger"> {{ $message }} </span>
+                                            @enderror
+                                        </div>
+                                    </div>
+
+                                    <!-- Discount Warning Banner -->
+                                    <div class="col-12" id="laundry-discount-warning" style="display: none;">
+                                        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                                            <strong><i class="mdi mdi-alert-circle-outline me-1"></i> Previous Discount Alert:</strong>
+                                            <span id="laundry-discount-warning-text"></span>
+                                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                         </div>
                                     </div>
 
@@ -266,12 +287,17 @@ $(document).ready(function() {
                 highlightField('#location');
                 if (data.uniqueid) highlightField('#unique_id');
 
+                // Show discount warning for laundry
+                showLaundryDiscountWarning(data);
+
                 $('#phoneStatus').html('<span class="badge bg-success">Returning Customer</span>').show();
                 toastr.success('Customer details loaded! Please fill in the remaining fields.');
 
                 setTimeout(function() { $('#phoneStatus').fadeOut(); }, 3000);
             } else {
                 $('#phoneStatus').hide();
+                $('#laundry-discount-warning').hide();
+                $('#previous-rate-helper').hide();
             }
         })
         .catch(function() {
@@ -322,6 +348,9 @@ $(document).ready(function() {
                 highlightField('#name');
                 highlightField('#location');
 
+                // Show discount warning for laundry
+                showLaundryDiscountWarning(data);
+
                 $('#uniqueIdStatus').html('<span class="badge bg-success">Returning Customer</span>').show();
                 $('#phoneStatus').html('<span class="badge bg-success">Returning Customer</span>').show();
                 toastr.success('Customer details loaded from existing record!');
@@ -332,6 +361,8 @@ $(document).ready(function() {
                 }, 3000);
             } else {
                 $('#uniqueIdStatus').hide();
+                $('#laundry-discount-warning').hide();
+                $('#previous-rate-helper').hide();
             }
         })
         .catch(function() {
@@ -345,6 +376,39 @@ $(document).ready(function() {
         setTimeout(function() {
             $(selector).css('border-color', '');
         }, 3000);
+    }
+
+    // Show discount warning banner for returning laundry customers
+    function showLaundryDiscountWarning(data) {
+        var lastDiscount = parseFloat(data.last_laundry_discount) || 0;
+        var lastPrice = parseFloat(data.last_laundry_price) || 0;
+        var lastTotal = parseFloat(data.last_laundry_total) || 0;
+
+        // Show previous rate helper text
+        if (lastPrice > 0) {
+            var helperText = 'Previous rate: KES ' + lastPrice.toLocaleString();
+            if (lastDiscount > 0) {
+                helperText += ' (Discount: KES ' + lastDiscount.toLocaleString() + ' applied)';
+            }
+            $('#previous-rate-helper').text(helperText).show();
+        } else {
+            $('#previous-rate-helper').hide();
+        }
+
+        if (lastDiscount > 0) {
+            var fullPrice = lastPrice + lastDiscount;
+            $('#laundry-discount-warning-text').text(
+                'Previous visit had a KES ' + lastDiscount.toLocaleString() +
+                ' discount (charged KES ' + lastPrice.toLocaleString() +
+                '). Full price was KES ' + fullPrice.toLocaleString() + '.'
+            );
+            $('#laundry-discount-warning').show();
+
+            // Reset discount to 0 for this visit
+            $('#laundry_discount').val(0);
+        } else {
+            $('#laundry-discount-warning').hide();
+        }
     }
 });
 </script>
