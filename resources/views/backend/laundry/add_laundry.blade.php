@@ -208,7 +208,7 @@
                                             <select name="payment_status" class="form-select @error('payment_status') is-invalid @enderror">
                                                 <option selected disabled>Select Status</option>
                                                 <option value="Paid">Paid</option>
-                                                <option value="Partial">Partially Paid</option>
+                                                <option value="Partial">Partial</option>
                                                 <option value="Not Paid">Not Paid</option>
                                             </select>
                                             @error('payment_status')

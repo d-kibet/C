@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreLaundryRequest;
+use App\Http\Requests\UpdateLaundryRequest;
 use Illuminate\Http\Request;
 use App\Models\Laundry;
 use Carbon\Carbon;
@@ -73,7 +75,11 @@ class LaundryController extends Controller
                 }
 
                 if (Gate::allows('laundry.delete') && (!$isLocked || Gate::allows('admin.all'))) {
-                    $actions .= '<a href="' . route('delete.laundry', $laundry->id) . '" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete" title="Delete"><i class="fa fa-trash"></i></a> ';
+                    $actions .= '<form action="' . route('delete.laundry', $laundry->id) . '" method="POST" style="display:inline" class="delete-form">'
+                        . '<input type="hidden" name="_token" value="' . csrf_token() . '">'
+                        . '<input type="hidden" name="_method" value="DELETE">'
+                        . '<button type="submit" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete" title="Delete"><i class="fa fa-trash"></i></button>'
+                        . '</form> ';
                 }
 
                 if (Gate::allows('laundry.details')) {
@@ -114,23 +120,8 @@ class LaundryController extends Controller
         return view('backend.laundry.add_laundry');
     }
 
-    public function StoreLaundry(Request $request){
-        $validateData = $request->validate([
-            'name' => 'required|string|max:200',
-            'phone' => 'required|string|max:15',
-            'location' => 'required|string|max:200',
-            'unique_id' => 'required|string|max:200',
-            'date_received' => 'required|date',
-            'date_delivered' => 'required|date',
-            'quantity' => 'required|integer|min:1',
-            'item_description' => 'required|string|max:200',
-            'weight' => 'required|numeric|min:0',
-            'price' => 'required|numeric|min:0',
-            'total' => 'required|numeric|min:0',
-            'delivered' => 'required|in:Delivered,Not Delivered',
-            'payment_status' => 'required|in:Paid,Not Paid',
-            'discount' => 'nullable|numeric|min:0',
-       ]);
+    public function StoreLaundry(StoreLaundryRequest $request){
+        $validateData = $request->validated();
 
        $laundry = Laundry::create(array_merge($validateData, [
            'follow_up_due_at' => Carbon::parse($validateData['date_received'])
@@ -141,7 +132,6 @@ class LaundryController extends Controller
            'message' => 'Laundry Added Successfully',
            'alert-type' => 'success'
        );
-
 
        return redirect()->route('all.laundry')->with($notification);
     }
@@ -160,24 +150,8 @@ class LaundryController extends Controller
         return view('backend.laundry.edit_laundry',compact('laundry'));
     }
 
-    public function UpdateLaundry(Request $request){
-        $validated = $request->validate([
-            'id' => 'required|exists:laundries,id',
-            'name' => 'required|string|max:200',
-            'phone' => 'required|string|max:15',
-            'location' => 'required|string|max:200',
-            'unique_id' => 'required|string|max:200',
-            'date_received' => 'required|date',
-            'date_delivered' => 'required|date',
-            'quantity' => 'required|integer|min:1',
-            'item_description' => 'required|string|max:200',
-            'weight' => 'required|numeric|min:0',
-            'price' => 'required|numeric|min:0',
-            'total' => 'required|numeric|min:0',
-            'delivered' => 'required|in:Delivered,Not Delivered',
-            'payment_status' => 'required|in:Paid,Not Paid',
-            'discount' => 'nullable|numeric|min:0',
-        ]);
+    public function UpdateLaundry(UpdateLaundryRequest $request){
+        $validated = $request->validated();
 
         $laundry_id = $validated['id'];
         $laundry = Laundry::findOrFail($laundry_id);
@@ -251,6 +225,28 @@ class LaundryController extends Controller
         return view('backend.laundry.details_laundry',compact('laundry'));
 
     } // End Method
+
+    public function RestoreLaundry($id)
+    {
+        $laundry = Laundry::onlyTrashed()->findOrFail($id);
+        $laundry->restore();
+
+        return redirect()->back()->with([
+            'message' => 'Laundry record restored successfully.',
+            'alert-type' => 'success'
+        ]);
+    }
+
+    public function ForceDeleteLaundry($id)
+    {
+        $laundry = Laundry::onlyTrashed()->findOrFail($id);
+        $laundry->forceDelete();
+
+        return redirect()->back()->with([
+            'message' => 'Laundry record permanently deleted.',
+            'alert-type' => 'success'
+        ]);
+    }
 
     public function downloadAllLaundry()
 {

@@ -87,11 +87,27 @@
 
 
 
+                                    <!-- Size -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Size</label>
+                                            <p class="text-danger">{{ $carpet->size }}</p>
+                                        </div>
+                                    </div>
+
                                     <!-- Price -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
                                             <label class="form-label">Price</label>
                                             <p class="text-danger">{{ $carpet->price }}</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Discount -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Discount (KES)</label>
+                                            <p class="text-danger">{{ $carpet->discount ?? 0 }}</p>
                                         </div>
                                     </div>
 

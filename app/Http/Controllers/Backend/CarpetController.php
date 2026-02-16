@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCarpetRequest;
+use App\Http\Requests\UpdateCarpetRequest;
 use App\Models\Carpet;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -73,7 +75,11 @@ class CarpetController extends Controller
                 }
 
                 if (Gate::allows('carpet.delete') && (!$isLocked || Gate::allows('admin.all'))) {
-                    $actions .= '<a href="' . route('delete.carpet', $carpet->id) . '" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete">Delete</a> ';
+                    $actions .= '<form action="' . route('delete.carpet', $carpet->id) . '" method="POST" style="display:inline" class="delete-form">'
+                        . '<input type="hidden" name="_token" value="' . csrf_token() . '">'
+                        . '<input type="hidden" name="_method" value="DELETE">'
+                        . '<button type="submit" class="btn btn-danger btn-sm rounded-pill waves-effect waves-light" id="delete">Delete</button>'
+                        . '</form> ';
                 }
 
                 if (Gate::allows('carpet.details')) {
@@ -185,35 +191,57 @@ class CarpetController extends Controller
 
         $todayClientCount = $todayUniqueNewClients->unique()->count();
 
-        return view('admin.index', compact('carpet', 'todayCarpetCount', 'todayClientCount'));
+        // Laundry count today
+        $todayLaundryCount = \App\Models\Laundry::whereDate('date_received', $today)->count();
+
+        // Revenue today
+        $todayCarpetRevenue = Carpet::whereDate('date_received', $today)->sum('price');
+        $todayLaundryRevenue = \App\Models\Laundry::whereDate('date_received', $today)->sum('total');
+        $todayTotalRevenue = $todayCarpetRevenue + $todayLaundryRevenue;
+
+        // Recent laundry (today or yesterday)
+        $recentLaundry = \App\Models\Laundry::whereDate('date_received', $today)
+                    ->orWhereDate('date_received', $yesterday)
+                    ->orderByRaw('(DATE(date_received) = CURDATE()) DESC, date_received DESC')
+                    ->get();
+
+        // Weekly chart data (last 7 days including today)
+        $weekLabels = [];
+        $weeklyCarpets = [];
+        $weeklyLaundry = [];
+        $weeklyRevenue = [];
+
+        for ($i = 6; $i >= 0; $i--) {
+            $date = Carbon::today()->subDays($i);
+            $dateStr = $date->toDateString();
+            $weekLabels[] = $date->format('D d/m');
+
+            $weeklyCarpets[] = Carpet::whereDate('date_received', $dateStr)->count();
+            $weeklyLaundry[] = \App\Models\Laundry::whereDate('date_received', $dateStr)->count();
+
+            $carpetRev = Carpet::whereDate('date_received', $dateStr)->sum('price');
+            $laundryRev = \App\Models\Laundry::whereDate('date_received', $dateStr)->sum('total');
+            $weeklyRevenue[] = $carpetRev + $laundryRev;
+        }
+
+        return view('admin.index', compact(
+            'carpet', 'todayCarpetCount', 'todayClientCount',
+            'todayLaundryCount', 'todayTotalRevenue', 'recentLaundry',
+            'weekLabels', 'weeklyCarpets', 'weeklyLaundry', 'weeklyRevenue'
+        ));
     } // End Method
 
     public function AddCarpet(){
         return view('backend.carpet.add_carpet');
     } // End Method
 
-    public function StoreCarpet(Request $request){
-        $validateData = $request->validate([
-             'uniqueid' => 'required|max:200',
-             'name' => 'required|max:200',
-             'size' => 'required|max:200',
-             'price' => 'required|max:200',
-             'phone' => 'required|max:200',
-             'location' => 'required|max:400',
-             'date_received' => 'required|date',
-             'date_delivered' => 'required|date',
-             'payment_status' => 'required',
-             'transaction_code' => 'required_if:payment_status,Paid|nullable|string|max:255',
-             'delivered' => 'required|max:200',
-             'discount' => 'nullable|numeric|min:0',
-
-        ]);
+    public function StoreCarpet(StoreCarpetRequest $request){
+        $validateData = $request->validated();
 
         $carpet = Carpet::create(array_merge($validateData, [
             'follow_up_due_at' => Carbon::parse($validateData['date_received'])
                                         ->addDays(config('followup.stages')[1]),
             'transaction_code' => $request->transaction_code,
-            // follow_up_stage defaults to 0, last_notified_at/resolved_at null
         ]));
 
         $notification = array(
@@ -239,22 +267,8 @@ class CarpetController extends Controller
         return view('backend.carpet.edit_carpet',compact('carpet'));
     }
 
-    public function UpdateCarpet(Request $request){
-        $validated = $request->validate([
-            'id' => 'required|exists:carpets,id',
-            'uniqueid' => 'required|string|max:200',
-            'name' => 'required|string|max:200',
-            'size' => 'required|string|max:200',
-            'price' => 'required|numeric|min:0',
-            'phone' => 'required|string|max:15',
-            'location' => 'required|string|max:400',
-            'date_received' => 'required|date',
-            'date_delivered' => 'required|date',
-            'payment_status' => 'required|in:Paid,Not Paid',
-            'transaction_code' => 'nullable|string|max:255',
-            'delivered' => 'required|in:Delivered,Not Delivered',
-            'discount' => 'nullable|numeric|min:0',
-        ]);
+    public function UpdateCarpet(UpdateCarpetRequest $request){
+        $validated = $request->validated();
 
         $carpet_id = $validated['id'];
         $carpet = Carpet::findOrFail($carpet_id);
@@ -327,6 +341,36 @@ class CarpetController extends Controller
         return view('backend.carpet.details_carpet',compact('carpet'));
 
     } // End Method
+
+    public function TrashedItems()
+    {
+        $trashedCarpets = Carpet::onlyTrashed()->orderBy('deleted_at', 'desc')->get();
+        $trashedLaundry = \App\Models\Laundry::onlyTrashed()->orderBy('deleted_at', 'desc')->get();
+
+        return view('backend.trash.index', compact('trashedCarpets', 'trashedLaundry'));
+    }
+
+    public function RestoreCarpet($id)
+    {
+        $carpet = Carpet::onlyTrashed()->findOrFail($id);
+        $carpet->restore();
+
+        return redirect()->back()->with([
+            'message' => 'Carpet record restored successfully.',
+            'alert-type' => 'success'
+        ]);
+    }
+
+    public function ForceDeleteCarpet($id)
+    {
+        $carpet = Carpet::onlyTrashed()->findOrFail($id);
+        $carpet->forceDelete();
+
+        return redirect()->back()->with([
+            'message' => 'Carpet record permanently deleted.',
+            'alert-type' => 'success'
+        ]);
+    }
 
     /**
      * Get customer details by phone number for autofill

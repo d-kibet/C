@@ -62,8 +62,11 @@ Route::controller(CarpetController::class)->middleware(['auth'])->group(function
     Route::get('/history/carpet/{phone}','HistoryCarpet')->name('history.client');
     Route::get('/edit/carpet/{id}','EditCarpet')->name('edit.carpet');
     Route::post('/update/carpet','UpdateCarpet')->name('carpet.update');
-    Route::get('/delete/carpet/{id}','DeleteCarpet')->name('delete.carpet');
+    Route::delete('/delete/carpet/{id}','DeleteCarpet')->name('delete.carpet');
     Route::get('/details/carpet/{id}','DetailsCarpet')->name('details.carpet');
+    Route::get('/trashed','TrashedItems')->name('trashed.index')->middleware('can:admin.all');
+    Route::post('/restore/carpet/{id}','RestoreCarpet')->name('restore.carpet')->middleware('can:admin.all');
+    Route::delete('/force-delete/carpet/{id}','ForceDeleteCarpet')->name('force.delete.carpet')->middleware('can:admin.all');
     Route::get('/customer/by-phone','getCustomerByPhone')->name('customer.byPhone');
     Route::get('/customer/by-uniqueid','getCustomerByUniqueId')->name('customer.byUniqueId');
     Route::get('reports/carpets/download-all','downloadAllCarpets')->name('reports.carpets.downloadAll');
@@ -83,8 +86,10 @@ Route::controller(LaundryController::class)->middleware(['auth'])->group(functio
     Route::post('/store/laundry','StoreLaundry')->name('laundry.store');
     Route::get('/edit/laundry/{id}','EditLaundry')->name('edit.laundry');
     Route::post('/update/laundry','UpdateLaundry')->name('laundry.update');
-    Route::get('/delete/laundry/{id}','DeleteLaundry')->name('delete.laundry');
+    Route::delete('/delete/laundry/{id}','DeleteLaundry')->name('delete.laundry');
     Route::get('/details/laundry/{id}','DetailsLaundry')->name('details.laundry');
+    Route::post('/restore/laundry/{id}','RestoreLaundry')->name('restore.laundry')->middleware('can:admin.all');
+    Route::delete('/force-delete/laundry/{id}','ForceDeleteLaundry')->name('force.delete.laundry')->middleware('can:admin.all');
     Route::get('reports/laundry/download-all','downloadAllLaundry')->name('reports.laundry.downloadAll');
     Route::get('reports/laundry/month','viewLaundryByMonth')->name('reports.laundry.viewMonth');
     Route::get('reports/laundry/month/download','downloadLaundryByMonth')->name('reports.laundry.downloadMonth');

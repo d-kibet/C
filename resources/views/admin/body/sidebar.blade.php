@@ -191,6 +191,12 @@
                         </a></li>
                         @endif
 
+                        @if(Auth::user()->can('admin.all'))
+                        <li><a href="{{ route('trashed.index') }}">
+                            <i class="ri-delete-bin-line me-2"></i>Deleted Records
+                        </a></li>
+                        @endif
+
                         <li><a href="{{ route('notifications.overdue') }}">
                             <i class="ri-time-line me-2"></i>Overdue Alerts
                         </a></li>

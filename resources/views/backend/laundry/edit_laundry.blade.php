@@ -194,7 +194,7 @@
            <select name="payment_status" class="form-select" @error('payment_status') is-invalid @enderror id="example-select">
                     <option selected disabled >Select Status </option>
                     <option value="Paid" {{ $laundry->payment_status == 'Paid' ? 'selected' : '' }}>Paid</option>
-                    <option value="Partial" {{ $laundry->payment_status == 'Partialy Paid' ? 'selected' : '' }}>Partialy Paid</option>
+                    <option value="Partial" {{ $laundry->payment_status == 'Partial' ? 'selected' : '' }}>Partial</option>
                     <option value="Not Paid" {{ $laundry->payment_status == 'Not Paid' ? 'selected' : '' }}>Not Paid</option>
 
                 </select>

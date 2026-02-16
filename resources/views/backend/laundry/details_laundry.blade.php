@@ -75,6 +75,13 @@
                                             <p class="text-danger">{{ $laundry->date_received }}</p>
                                         </div>
                                     </div>
+                                    <!-- Date Delivered -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Date Delivered</label>
+                                            <p class="text-danger">{{ $laundry->date_delivered ?? 'Not set' }}</p>
+                                        </div>
+                                    </div>
                                     <!-- Quantity -->
                                     <div class="col-md-6">
                                         <div class="mb-3">
@@ -101,6 +108,13 @@
                                         <div class="mb-3">
                                             <label class="form-label">Price</label>
                                             <p class="text-danger">{{ $laundry->price }}</p>
+                                        </div>
+                                    </div>
+                                    <!-- Discount -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Discount (KES)</label>
+                                            <p class="text-danger">{{ $laundry->discount ?? 0 }}</p>
                                         </div>
                                     </div>
                                     <!-- Total Amount -->
