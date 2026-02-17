@@ -45,6 +45,7 @@
                                     <th>Unique ID</th>
                                     <th>Size</th>
                                     <th>Price</th>
+                                    <th>Discount</th>
                                     <th>Phone Number</th>
                                     <th>Payment Status</th>
                                     <th>Delivered</th>
@@ -81,6 +82,7 @@ $(document).ready(function() {
             { data: 'uniqueid', name: 'uniqueid' },
             { data: 'size', name: 'size' },
             { data: 'price', name: 'price' },
+            { data: 'discount', name: 'discount' },
             { data: 'phone', name: 'phone' },
             { data: 'payment_status', name: 'payment_status' },
             { data: 'delivered', name: 'delivered' },

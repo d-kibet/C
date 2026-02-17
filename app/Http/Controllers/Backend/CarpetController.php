@@ -32,7 +32,7 @@ class CarpetController extends Controller
             $orderDirection = $request->input('order.0.dir', 'desc') === 'asc' ? 'asc' : 'desc';
 
             // Map column index to database column (whitelist approach for security)
-            $columns = ['date_received', 'uniqueid', 'size', 'price', 'phone', 'payment_status', 'delivered'];
+            $columns = ['date_received', 'uniqueid', 'size', 'price', 'discount', 'phone', 'payment_status', 'delivered'];
             $orderColumn = $columns[$orderColumnIndex] ?? 'date_received';
 
             // Base query
@@ -91,6 +91,7 @@ class CarpetController extends Controller
                     'uniqueid' => e($carpet->uniqueid),
                     'size' => e($carpet->size),
                     'price' => number_format($carpet->price ?? 0, 2),
+                    'discount' => number_format($carpet->discount ?? 0, 2),
                     'phone' => e($carpet->phone),
                     'payment_status' => e($carpet->payment_status),
                     'delivered' => e($carpet->delivered),
