@@ -130,116 +130,61 @@ class CarpetController extends Controller
 
     public function CarpetDashboard()
     {
-        // Define today and yesterday in 'YYYY-MM-DD' format.
-        $today = Carbon::today()->toDateString();
+        $today     = Carbon::today()->toDateString();
         $yesterday = Carbon::yesterday()->toDateString();
 
-        // Get recent carpets for the table (received today or yesterday)
-        $carpet = Carpet::whereDate('date_received', $today)
-                    ->orWhereDate('date_received', $yesterday)
-                    // Order them so that today's records come first.
-                    ->orderByRaw('(DATE(date_received) = CURDATE()) DESC, date_received DESC')
-                    ->get();
+        // Summary card counts (from orders table)
+        $todayCarpetCount  = \App\Models\Order::where('type', 'carpet')
+                                ->whereDate('date_received', $today)->count();
 
-        // Count carpets actually washed/processed today (using date_received as processing date)
-        $todayCarpetCount = Carpet::whereDate('date_received', $today)->count();
+        $todayLaundryCount = \App\Models\Order::where('type', 'laundry')
+                                ->whereDate('date_received', $today)->count();
 
-        // Count new clients today using unique phone numbers and unique IDs
-        // A client is "new" if this is their first carpet service ever
-        $todayNewClientCount = Carpet::whereDate('date_received', $today)
-            ->whereNotExists(function ($query) use ($today) {
-                $query->select(DB::raw(1))
-                    ->from('carpets as c2')
-                    ->whereColumn('c2.phone', 'carpets.phone')
-                    ->where('c2.date_received', '<', $today);
-            })
-            ->distinct('phone')
-            ->count('phone');
+        // New clients today: phones that have no order before today
+        $todayPhones = \App\Models\Order::whereDate('date_received', $today)
+                            ->distinct()->pluck('phone');
 
-        // Also check laundry for truly new clients across all services
-        $todayUniqueNewClients = collect();
+        $todayClientCount = $todayPhones->filter(function ($phone) use ($today) {
+            return !\App\Models\Order::where('phone', $phone)
+                        ->where('date_received', '<', $today)
+                        ->exists();
+        })->count();
 
-        // Get carpet clients from today
-        $todayCarpetClients = Carpet::whereDate('date_received', $today)
-            ->select('phone', 'name', 'date_received')
-            ->get();
+        // Today's revenue (from orders.total which is already net of discounts)
+        $todayTotalRevenue = \App\Models\Order::whereDate('date_received', $today)
+                                ->sum('total');
 
-        // Check if they exist in carpet before today OR in laundry before today
-        foreach ($todayCarpetClients as $client) {
-            $existsInCarpet = Carpet::where('phone', $client->phone)
-                ->where('date_received', '<', $today)
-                ->exists();
-
-            $existsInLaundry = \App\Models\Laundry::where('phone', $client->phone)
-                ->where('date_received', '<', $today)
-                ->exists();
-
-            if (!$existsInCarpet && !$existsInLaundry) {
-                $todayUniqueNewClients->push($client->phone);
-            }
-        }
-
-        // Get laundry clients from today and check if they're truly new
-        $todayLaundryClients = \App\Models\Laundry::whereDate('date_received', $today)
-            ->select('phone', 'name', 'date_received')
-            ->get();
-
-        foreach ($todayLaundryClients as $client) {
-            if ($todayUniqueNewClients->contains($client->phone)) {
-                continue; // Already counted from carpet
-            }
-
-            $existsInCarpet = Carpet::where('phone', $client->phone)
-                ->where('date_received', '<', $today)
-                ->exists();
-
-            $existsInLaundry = \App\Models\Laundry::where('phone', $client->phone)
-                ->where('date_received', '<', $today)
-                ->exists();
-
-            if (!$existsInCarpet && !$existsInLaundry) {
-                $todayUniqueNewClients->push($client->phone);
-            }
-        }
-
-        $todayClientCount = $todayUniqueNewClients->unique()->count();
-
-        // Laundry count today
-        $todayLaundryCount = \App\Models\Laundry::whereDate('date_received', $today)->count();
-
-        // Revenue today
-        $todayCarpetRevenue = Carpet::whereDate('date_received', $today)->sum('price');
-        $todayLaundryRevenue = \App\Models\Laundry::whereDate('date_received', $today)->sum('total');
-        $todayTotalRevenue = $todayCarpetRevenue + $todayLaundryRevenue;
-
-        // Recent laundry (today or yesterday)
-        $recentLaundry = \App\Models\Laundry::whereDate('date_received', $today)
-                    ->orWhereDate('date_received', $yesterday)
-                    ->orderByRaw('(DATE(date_received) = CURDATE()) DESC, date_received DESC')
-                    ->get();
+        // Recent orders for the dashboard table (today + yesterday)
+        $recentOrders = \App\Models\Order::withCount('items')
+                            ->where(function ($q) use ($today, $yesterday) {
+                                $q->whereDate('date_received', $today)
+                                  ->orWhereDate('date_received', $yesterday);
+                            })
+                            ->orderByRaw('(DATE(date_received) = CURDATE()) DESC, date_received DESC')
+                            ->get();
 
         // Weekly chart data (last 7 days including today)
-        $weekLabels = [];
+        $weekLabels    = [];
         $weeklyCarpets = [];
         $weeklyLaundry = [];
         $weeklyRevenue = [];
 
         for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::today()->subDays($i);
+            $date    = Carbon::today()->subDays($i);
             $dateStr = $date->toDateString();
-            $weekLabels[] = $date->format('D d/m');
 
-            $weeklyCarpets[] = Carpet::whereDate('date_received', $dateStr)->count();
-            $weeklyLaundry[] = \App\Models\Laundry::whereDate('date_received', $dateStr)->count();
-
-            $carpetRev = Carpet::whereDate('date_received', $dateStr)->sum('price');
-            $laundryRev = \App\Models\Laundry::whereDate('date_received', $dateStr)->sum('total');
-            $weeklyRevenue[] = $carpetRev + $laundryRev;
+            $weekLabels[]    = $date->format('D d/m');
+            $weeklyCarpets[] = \App\Models\Order::where('type', 'carpet')
+                                    ->whereDate('date_received', $dateStr)->count();
+            $weeklyLaundry[] = \App\Models\Order::where('type', 'laundry')
+                                    ->whereDate('date_received', $dateStr)->count();
+            $weeklyRevenue[] = \App\Models\Order::whereDate('date_received', $dateStr)
+                                    ->sum('total');
         }
 
         return view('admin.index', compact(
-            'carpet', 'todayCarpetCount', 'todayClientCount',
-            'todayLaundryCount', 'todayTotalRevenue', 'recentLaundry',
+            'todayCarpetCount', 'todayLaundryCount', 'todayClientCount',
+            'todayTotalRevenue', 'recentOrders',
             'weekLabels', 'weeklyCarpets', 'weeklyLaundry', 'weeklyRevenue'
         ));
     } // End Method

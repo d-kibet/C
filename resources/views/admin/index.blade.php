@@ -119,72 +119,63 @@
             @endif
         </div><!-- end row -->
 
-        <!-- Carpet Data Table -->
+        <!-- Recent Orders Table -->
         <div class="row">
             <div class="col-xl-12">
                 <div class="card">
                     <div class="card-body">
-                        <h4 class="card-title mb-4">Carpets Recently Washed</h4>
+                        <h4 class="card-title mb-4">Recent Orders (Today &amp; Yesterday)</h4>
                         <div class="table-responsive">
-                            <table class="table table-centered mb-0 align-middle table-hover table-nowrap" id="myTable">
+                            <table class="table table-centered mb-0 align-middle table-hover table-nowrap">
                                 <thead class="table-light">
                                     <tr>
-                                        <th>Unique ID</th>
-                                        <th>Size</th>
-                                        <th>Price</th>
-                                        <th>Payment Status</th>
-                                        <th>Date Received</th>
-                                        <th>Delivered</th>
+                                        <th>Type</th>
+                                        <th>Customer</th>
+                                        <th>Phone</th>
+                                        <th>Items</th>
+                                        @if(Auth::user()->can('admin.all'))
+                                        <th>Total (KES)</th>
+                                        @endif
+                                        <th>Payment</th>
+                                        <th>Date</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($carpet as $item)
+                                    @forelse($recentOrders as $order)
                                         <tr>
-                                            <td>{{ $item->uniqueid }}</td>
-                                            <td>{{ $item->size }}</td>
-                                            <td>{{ $item->price }}</td>
-                                            <td>{{ $item->payment_status }}</td>
-                                            <td>{{ $item->date_received }}</td>
-                                            <td>{{ $item->delivered }}</td>
+                                            <td>
+                                                @if($order->type === 'carpet')
+                                                    <span class="badge bg-primary">Carpet</span>
+                                                @else
+                                                    <span class="badge bg-success">Laundry</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ $order->name }}</td>
+                                            <td>{{ $order->phone }}</td>
+                                            <td>{{ $order->items_count }}</td>
+                                            @if(Auth::user()->can('admin.all'))
+                                            <td>{{ number_format($order->total, 2) }}</td>
+                                            @endif
+                                            <td>
+                                                @if($order->payment_status === 'Paid')
+                                                    <span class="badge bg-success">Paid</span>
+                                                @elseif($order->payment_status === 'Partial')
+                                                    <span class="badge bg-warning text-dark">Partial</span>
+                                                @else
+                                                    <span class="badge bg-danger">Not Paid</span>
+                                                @endif
+                                            </td>
+                                            <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
+                                            <td>
+                                                <a href="{{ route('orders.show', $order->id) }}" class="btn btn-info btn-sm rounded-pill waves-effect waves-light">View</a>
+                                            </td>
                                         </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Laundry Data Table -->
-        <div class="row">
-            <div class="col-xl-12">
-                <div class="card">
-                    <div class="card-body">
-                        <h4 class="card-title mb-4">Laundry Recently Processed</h4>
-                        <div class="table-responsive">
-                            <table class="table table-centered mb-0 align-middle table-hover table-nowrap" id="laundryTable">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Unique ID</th>
-                                        <th>Name</th>
-                                        <th>Total</th>
-                                        <th>Payment Status</th>
-                                        <th>Date Received</th>
-                                        <th>Delivered</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach($recentLaundry as $item)
+                                    @empty
                                         <tr>
-                                            <td>{{ $item->unique_id }}</td>
-                                            <td>{{ $item->name }}</td>
-                                            <td>{{ number_format($item->total ?? 0, 2) }}</td>
-                                            <td>{{ $item->payment_status }}</td>
-                                            <td>{{ $item->date_received }}</td>
-                                            <td>{{ $item->delivered }}</td>
+                                            <td colspan="8" class="text-center text-muted py-3">No orders recorded today or yesterday.</td>
                                         </tr>
-                                    @endforeach
+                                    @endforelse
                                 </tbody>
                             </table>
                         </div>
