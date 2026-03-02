@@ -4,9 +4,8 @@ namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use App\Models\Carpet;
+use App\Models\Order;
 use App\Models\Mpesa;
-use App\Models\Laundry;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use Carbon\Carbon;
@@ -15,61 +14,56 @@ use Illuminate\Support\Facades\DB;
 class ReportController extends Controller
 {
     public function CarpetsToday(Request $request){
-        $date = $request->input('date', \Carbon\Carbon::today()->toDateString());
-        $selectedDate = \Carbon\Carbon::parse($date)->toDateString();
+        $date = $request->input('date', Carbon::today()->toDateString());
+        $selectedDate = Carbon::parse($date)->toDateString();
 
-        // Retrieve paid carpets for the selected date
-        $paidCarpets = Carpet::whereDate('date_received', $selectedDate)
+        $paidOrders = Order::with('items')
+            ->where('type', 'carpet')
+            ->whereDate('date_received', $selectedDate)
             ->where('payment_status', 'Paid')
             ->get();
 
-        // Retrieve unpaid carpets for the selected date
-        $unpaidCarpets = Carpet::whereDate('date_received', $selectedDate)
-            ->where('payment_status', 'Not Paid')
+        $unpaidOrders = Order::with('items')
+            ->where('type', 'carpet')
+            ->whereDate('date_received', $selectedDate)
+            ->whereIn('payment_status', ['Not Paid', 'Partial'])
             ->get();
 
-        $totalPaidCarpets = $paidCarpets->sum('price');
-        $totalUnpaidCarpets = $unpaidCarpets->sum('price');
+        $totalPaidCarpets   = $paidOrders->sum('total');
+        $totalUnpaidCarpets = $unpaidOrders->sum('total');
 
         return view('reports.carpets_today', compact(
-            'paidCarpets', 'unpaidCarpets',
+            'paidOrders', 'unpaidOrders',
             'totalPaidCarpets', 'totalUnpaidCarpets',
             'selectedDate'
         ));
     }
 
     public function LaundryToday(Request $request){
-       // Get the selected date from the request or default to today.
-    $date = $request->input('date', \Carbon\Carbon::today()->toDateString());
-    $selectedDate = \Carbon\Carbon::parse($date)->toDateString();
+        $date = $request->input('date', Carbon::today()->toDateString());
+        $selectedDate = Carbon::parse($date)->toDateString();
 
-    // Retrieve paid laundry records using payment_status field
-    $paidLaundry = Laundry::whereDate('date_received', $selectedDate)
-        ->where('payment_status', 'Paid')
-        ->get();
+        $paidOrders = Order::with('items')
+            ->where('type', 'laundry')
+            ->whereDate('date_received', $selectedDate)
+            ->where('payment_status', 'Paid')
+            ->get();
 
-    // Retrieve unpaid laundry records using payment_status field
-    $unpaidLaundry = Laundry::whereDate('date_received', $selectedDate)
-        ->where('payment_status', 'Not Paid')
-        ->get();
+        $unpaidOrders = Order::with('items')
+            ->where('type', 'laundry')
+            ->whereDate('date_received', $selectedDate)
+            ->whereIn('payment_status', ['Not Paid', 'Partial'])
+            ->get();
 
-    // Calculate totals.
-    $totalLaundryPaid = $paidLaundry->sum(function($item) {
-        return is_numeric($item->total) ? (float) $item->total : 0;
-    });
-    $totalLaundryUnpaid = $unpaidLaundry->sum(function($item) {
-        return is_numeric($item->total) ? (float) $item->total : 0;
-    });
-    $grandTotal = $totalLaundryPaid + $totalLaundryUnpaid;
+        $totalLaundryPaid   = (float) $paidOrders->sum('total');
+        $totalLaundryUnpaid = (float) $unpaidOrders->sum('total');
+        $grandTotal = $totalLaundryPaid + $totalLaundryUnpaid;
 
-    return view('reports.laundry_today', compact(
-        'paidLaundry',
-        'unpaidLaundry',
-        'totalLaundryPaid',
-        'totalLaundryUnpaid',
-        'grandTotal',
-        'selectedDate'
-    ));
+        return view('reports.laundry_today', compact(
+            'paidOrders', 'unpaidOrders',
+            'totalLaundryPaid', 'totalLaundryUnpaid',
+            'grandTotal', 'selectedDate'
+        ));
     }
 
     public function mpesaToday(Request $request)
@@ -166,57 +160,43 @@ class ReportController extends Controller
 
     private function getCarpetPerformanceData($fromDate, $toDate)
     {
-        // Get carpet data for the period
-        $carpets = Carpet::whereBetween('date_received', [$fromDate, $toDate])
+        $orders = Order::with('items')->where('type', 'carpet')
+            ->whereBetween('date_received', [$fromDate, $toDate])
             ->orderBy('date_received', 'desc')
             ->get();
 
-        // Calculate metrics
-        $totalRevenue = $carpets->sum('price');
-        $paidCarpets = $carpets->where('payment_status', 'Paid');
-        $unpaidCarpets = $carpets->where('payment_status', 'Not Paid');
-        $paidRevenue = $paidCarpets->sum('price');
-        $unpaidRevenue = $unpaidCarpets->sum('price');
-        $totalOrders = $carpets->count();
-        $unpaidOrders = $unpaidCarpets->count();
-        $paymentRate = $totalOrders > 0 ? ($paidCarpets->count() / $totalOrders) * 100 : 0;
-        $avgDailyOrders = $totalOrders / max(1, $fromDate->diffInDays($toDate) + 1);
+        $totalRevenue  = $orders->sum('total');
+        $paidOrders    = $orders->where('payment_status', 'Paid');
+        $unpaidOrders  = $orders->where('payment_status', 'Not Paid');
+        $paidRevenue   = $paidOrders->sum('total');
+        $unpaidRevenue = $unpaidOrders->sum('total');
+        $totalCount    = $orders->count();
+        $unpaidCount   = $unpaidOrders->count();
+        $paymentRate   = $totalCount > 0 ? ($paidOrders->count() / $totalCount) * 100 : 0;
+        $avgDailyOrders = $totalCount / max(1, $fromDate->diffInDays($toDate) + 1);
 
-        // Daily revenue data for chart
-        $dailyRevenue = $carpets->groupBy(function($item) {
+        $dailyRevenue = $orders->groupBy(function($item) {
             return Carbon::parse($item->date_received)->format('Y-m-d');
-        })->map(function($dayCarpets) {
-            $paidAmount = $dayCarpets->where('payment_status', 'Paid')->sum('price');
-            $totalAmount = $dayCarpets->sum('price');
-            return [
-                'total' => $totalAmount,
-                'paid' => $paidAmount,
-                'unpaid' => $totalAmount - $paidAmount
-            ];
+        })->map(function($dayOrders) {
+            $paidAmount  = $dayOrders->where('payment_status', 'Paid')->sum('total');
+            $totalAmount = $dayOrders->sum('total');
+            return ['total' => $totalAmount, 'paid' => $paidAmount, 'unpaid' => $totalAmount - $paidAmount];
         });
 
-        // Fill missing dates with zero values
-        $revenueLabels = [];
-        $revenueTotal = [];
-        $revenuePaid = [];
-        $revenueUnpaid = [];
+        $revenueLabels = []; $revenueTotal = []; $revenuePaid = []; $revenueUnpaid = [];
         $currentDate = $fromDate->copy();
-        
         while ($currentDate <= $toDate) {
             $dateStr = $currentDate->format('Y-m-d');
             $revenueLabels[] = $currentDate->format('M d');
-            $revenueTotal[] = $dailyRevenue[$dateStr]['total'] ?? 0;
-            $revenuePaid[] = $dailyRevenue[$dateStr]['paid'] ?? 0;
+            $revenueTotal[]  = $dailyRevenue[$dateStr]['total']  ?? 0;
+            $revenuePaid[]   = $dailyRevenue[$dateStr]['paid']   ?? 0;
             $revenueUnpaid[] = $dailyRevenue[$dateStr]['unpaid'] ?? 0;
             $currentDate->addDay();
         }
 
-        // Volume data (daily order count)
-        $dailyVolume = $carpets->groupBy(function($item) {
+        $dailyVolume = $orders->groupBy(function($item) {
             return Carbon::parse($item->date_received)->format('Y-m-d');
-        })->map(function($dayCarpets) {
-            return $dayCarpets->count();
-        });
+        })->map(fn($d) => $d->count());
 
         $volumeData = [];
         $currentDate = $fromDate->copy();
@@ -225,120 +205,89 @@ class ReportController extends Controller
             $currentDate->addDay();
         }
 
-        // Customer analytics (new vs returning)
-        $customerData = $this->getCarpetCustomerAnalytics($carpets, $fromDate, $toDate);
+        $customerData = $this->getCarpetCustomerAnalytics($orders, $fromDate, $toDate);
 
-        // Operational metrics
-        $pendingDeliveries = Carpet::where('delivered', 'Not Delivered')->count();
-        $completedToday = Carpet::whereDate('date_delivered', Carbon::today())
-            ->where('delivered', 'Delivered')->count();
-        
-        // Calculate average processing days for delivered items
-        $deliveredCarpets = $carpets->where('delivered', 'Delivered');
+        $pendingDeliveries = Order::where('type', 'carpet')->where('delivered', 'Not Delivered')->count();
+        $completedToday    = Order::where('type', 'carpet')->where('delivered', 'Delivered')
+                                ->whereDate('updated_at', Carbon::today())->count();
+
+        $deliveredOrders = $orders->where('delivered', 'Delivered');
         $avgProcessingDays = 0;
-        if ($deliveredCarpets->count() > 0) {
-            $totalDays = $deliveredCarpets->map(function($carpet) {
-                $received = Carbon::parse($carpet->date_received);
-                $delivered = Carbon::parse($carpet->date_delivered);
-                return $received->diffInDays($delivered);
+        if ($deliveredOrders->count() > 0) {
+            $totalDays = $deliveredOrders->map(function($order) {
+                return Carbon::parse($order->date_received)->diffInDays(Carbon::parse($order->updated_at));
             })->sum();
-            $avgProcessingDays = $totalDays / $deliveredCarpets->count();
+            $avgProcessingDays = $totalDays / $deliveredOrders->count();
         }
 
-        // New customers rate
         $newCustomersCount = $customerData['totals']['new'];
-        $newCustomersRate = $totalOrders > 0 ? ($newCustomersCount / $totalOrders) * 100 : 0;
+        $newCustomersRate  = $totalCount > 0 ? ($newCustomersCount / $totalCount) * 100 : 0;
 
         return response()->json([
             'metrics' => [
-                'total_revenue' => $totalRevenue,
-                'paid_revenue' => $paidRevenue,
-                'total_orders' => $totalOrders,
-                'unpaid_orders' => $unpaidOrders,
-                'unpaid_revenue' => $unpaidRevenue,
-                'payment_rate' => round($paymentRate, 1),
+                'total_revenue'    => $totalRevenue,
+                'paid_revenue'     => $paidRevenue,
+                'total_orders'     => $totalCount,
+                'unpaid_orders'    => $unpaidCount,
+                'unpaid_revenue'   => $unpaidRevenue,
+                'payment_rate'     => round($paymentRate, 1),
                 'avg_daily_orders' => round($avgDailyOrders, 1),
-                'period_start' => $fromDate->format('M d, Y')
+                'period_start'     => $fromDate->format('M d, Y')
             ],
             'charts' => [
-                'revenue' => [
-                    'labels' => $revenueLabels,
-                    'total' => $revenueTotal,
-                    'paid' => $revenuePaid,
-                    'unpaid' => $revenueUnpaid
-                ],
-                'payment' => [
-                    'paid' => $paidRevenue,
-                    'unpaid' => $totalRevenue - $paidRevenue
-                ],
-                'volume' => [
-                    'labels' => $revenueLabels,
-                    'data' => $volumeData
-                ],
+                'revenue'   => ['labels' => $revenueLabels, 'total' => $revenueTotal, 'paid' => $revenuePaid, 'unpaid' => $revenueUnpaid],
+                'payment'   => ['paid' => $paidRevenue, 'unpaid' => $totalRevenue - $paidRevenue],
+                'volume'    => ['labels' => $revenueLabels, 'data' => $volumeData],
                 'customers' => $customerData['chart']
             ],
             'operational' => [
-                'pending_deliveries' => $pendingDeliveries,
-                'completed_today' => $completedToday,
+                'pending_deliveries'  => $pendingDeliveries,
+                'completed_today'     => $completedToday,
                 'avg_processing_days' => round($avgProcessingDays, 1),
-                'new_customers_rate' => round($newCustomersRate, 1)
+                'new_customers_rate'  => round($newCustomersRate, 1)
             ]
         ]);
     }
 
     private function getLaundryPerformanceData($fromDate, $toDate)
     {
-        // Get laundry data for the period
-        $laundry = Laundry::whereBetween('date_received', [$fromDate, $toDate])
+        $orders = Order::with('items')->where('type', 'laundry')
+            ->whereBetween('date_received', [$fromDate, $toDate])
             ->orderBy('date_received', 'desc')
             ->get();
 
-        // Calculate metrics
-        $totalRevenue = $laundry->sum('total');
-        $paidLaundry = $laundry->where('payment_status', 'Paid');
-        $unpaidLaundry = $laundry->where('payment_status', 'Not Paid');
-        $paidRevenue = $paidLaundry->sum('total');
-        $unpaidRevenue = $unpaidLaundry->sum('total');
-        $totalOrders = $laundry->count();
-        $unpaidOrders = $unpaidLaundry->count();
-        $paymentRate = $totalOrders > 0 ? ($paidLaundry->count() / $totalOrders) * 100 : 0;
-        $avgDailyOrders = $totalOrders / max(1, $fromDate->diffInDays($toDate) + 1);
+        $totalRevenue  = $orders->sum('total');
+        $paidOrders    = $orders->where('payment_status', 'Paid');
+        $unpaidOrders  = $orders->where('payment_status', 'Not Paid');
+        $paidRevenue   = $paidOrders->sum('total');
+        $unpaidRevenue = $unpaidOrders->sum('total');
+        $totalCount    = $orders->count();
+        $unpaidCount   = $unpaidOrders->count();
+        $paymentRate   = $totalCount > 0 ? ($paidOrders->count() / $totalCount) * 100 : 0;
+        $avgDailyOrders = $totalCount / max(1, $fromDate->diffInDays($toDate) + 1);
 
-        // Daily revenue data for chart
-        $dailyRevenue = $laundry->groupBy(function($item) {
+        $dailyRevenue = $orders->groupBy(function($item) {
             return Carbon::parse($item->date_received)->format('Y-m-d');
-        })->map(function($dayLaundry) {
-            $paidAmount = $dayLaundry->where('payment_status', 'Paid')->sum('total');
-            $totalAmount = $dayLaundry->sum('total');
-            return [
-                'total' => $totalAmount,
-                'paid' => $paidAmount,
-                'unpaid' => $totalAmount - $paidAmount
-            ];
+        })->map(function($dayOrders) {
+            $paidAmount  = $dayOrders->where('payment_status', 'Paid')->sum('total');
+            $totalAmount = $dayOrders->sum('total');
+            return ['total' => $totalAmount, 'paid' => $paidAmount, 'unpaid' => $totalAmount - $paidAmount];
         });
 
-        // Fill missing dates with zero values
-        $revenueLabels = [];
-        $revenueTotal = [];
-        $revenuePaid = [];
-        $revenueUnpaid = [];
+        $revenueLabels = []; $revenueTotal = []; $revenuePaid = []; $revenueUnpaid = [];
         $currentDate = $fromDate->copy();
-        
         while ($currentDate <= $toDate) {
             $dateStr = $currentDate->format('Y-m-d');
             $revenueLabels[] = $currentDate->format('M d');
-            $revenueTotal[] = $dailyRevenue[$dateStr]['total'] ?? 0;
-            $revenuePaid[] = $dailyRevenue[$dateStr]['paid'] ?? 0;
+            $revenueTotal[]  = $dailyRevenue[$dateStr]['total']  ?? 0;
+            $revenuePaid[]   = $dailyRevenue[$dateStr]['paid']   ?? 0;
             $revenueUnpaid[] = $dailyRevenue[$dateStr]['unpaid'] ?? 0;
             $currentDate->addDay();
         }
 
-        // Volume data (daily order count)
-        $dailyVolume = $laundry->groupBy(function($item) {
+        $dailyVolume = $orders->groupBy(function($item) {
             return Carbon::parse($item->date_received)->format('Y-m-d');
-        })->map(function($dayLaundry) {
-            return $dayLaundry->count();
-        });
+        })->map(fn($d) => $d->count());
 
         $volumeData = [];
         $currentDate = $fromDate->copy();
@@ -347,91 +296,76 @@ class ReportController extends Controller
             $currentDate->addDay();
         }
 
-        // Customer analytics (new vs returning)
-        $customerData = $this->getLaundryCustomerAnalytics($laundry, $fromDate, $toDate);
+        $customerData = $this->getLaundryCustomerAnalytics($orders, $fromDate, $toDate);
 
-        // Operational metrics
-        $pendingDeliveries = Laundry::where('delivered', 'Not Delivered')->count();
-        $completedToday = Laundry::whereDate('date_delivered', Carbon::today())
-            ->where('delivered', 'Delivered')->count();
-        
-        // Calculate average processing days for delivered items
-        $deliveredLaundry = $laundry->where('delivered', 'Delivered');
+        $pendingDeliveries = Order::where('type', 'laundry')->where('delivered', 'Not Delivered')->count();
+        $completedToday    = Order::where('type', 'laundry')->where('delivered', 'Delivered')
+                                ->whereDate('updated_at', Carbon::today())->count();
+
+        $deliveredOrders = $orders->where('delivered', 'Delivered');
         $avgProcessingDays = 0;
-        if ($deliveredLaundry->count() > 0) {
-            $totalDays = $deliveredLaundry->map(function($item) {
-                $received = Carbon::parse($item->date_received);
-                $delivered = Carbon::parse($item->date_delivered);
-                return $received->diffInDays($delivered);
+        if ($deliveredOrders->count() > 0) {
+            $totalDays = $deliveredOrders->map(function($order) {
+                return Carbon::parse($order->date_received)->diffInDays(Carbon::parse($order->updated_at));
             })->sum();
-            $avgProcessingDays = $totalDays / $deliveredLaundry->count();
+            $avgProcessingDays = $totalDays / $deliveredOrders->count();
         }
 
-        // New customers rate
         $newCustomersCount = $customerData['totals']['new'];
-        $newCustomersRate = $totalOrders > 0 ? ($newCustomersCount / $totalOrders) * 100 : 0;
+        $newCustomersRate  = $totalCount > 0 ? ($newCustomersCount / $totalCount) * 100 : 0;
 
         return response()->json([
             'metrics' => [
-                'total_revenue' => $totalRevenue,
-                'paid_revenue' => $paidRevenue,
-                'total_orders' => $totalOrders,
-                'unpaid_orders' => $unpaidOrders,
-                'unpaid_revenue' => $unpaidRevenue,
-                'payment_rate' => round($paymentRate, 1),
+                'total_revenue'    => $totalRevenue,
+                'paid_revenue'     => $paidRevenue,
+                'total_orders'     => $totalCount,
+                'unpaid_orders'    => $unpaidCount,
+                'unpaid_revenue'   => $unpaidRevenue,
+                'payment_rate'     => round($paymentRate, 1),
                 'avg_daily_orders' => round($avgDailyOrders, 1),
-                'period_start' => $fromDate->format('M d, Y')
+                'period_start'     => $fromDate->format('M d, Y')
             ],
             'charts' => [
-                'revenue' => [
-                    'labels' => $revenueLabels,
-                    'total' => $revenueTotal,
-                    'paid' => $revenuePaid,
-                    'unpaid' => $revenueUnpaid
-                ],
-                'payment' => [
-                    'paid' => $paidRevenue,
-                    'unpaid' => $totalRevenue - $paidRevenue
-                ],
-                'volume' => [
-                    'labels' => $revenueLabels,
-                    'data' => $volumeData
-                ],
+                'revenue'   => ['labels' => $revenueLabels, 'total' => $revenueTotal, 'paid' => $revenuePaid, 'unpaid' => $revenueUnpaid],
+                'payment'   => ['paid' => $paidRevenue, 'unpaid' => $totalRevenue - $paidRevenue],
+                'volume'    => ['labels' => $revenueLabels, 'data' => $volumeData],
                 'customers' => $customerData['chart']
             ],
             'operational' => [
-                'pending_deliveries' => $pendingDeliveries,
-                'completed_today' => $completedToday,
+                'pending_deliveries'  => $pendingDeliveries,
+                'completed_today'     => $completedToday,
                 'avg_processing_days' => round($avgProcessingDays, 1),
-                'new_customers_rate' => round($newCustomersRate, 1)
+                'new_customers_rate'  => round($newCustomersRate, 1)
             ]
         ]);
     }
 
-    private function getCarpetCustomerAnalytics($carpets, $fromDate, $toDate)
+    private function getCarpetCustomerAnalytics($orders, $fromDate, $toDate)
     {
-        $weeklyData = [];
+        $weeklyData  = [];
         $currentDate = $fromDate->copy()->startOfWeek();
-        
+
         while ($currentDate <= $toDate) {
-            $weekEnd = $currentDate->copy()->endOfWeek();
-            $weekCarpets = $carpets->filter(function($carpet) use ($currentDate, $weekEnd) {
-                $orderDate = Carbon::parse($carpet->date_received);
-                return $orderDate >= $currentDate && $orderDate <= $weekEnd;
+            $weekEnd    = $currentDate->copy()->endOfWeek();
+            $weekOrders = $orders->filter(function($order) use ($currentDate, $weekEnd) {
+                $d = Carbon::parse($order->date_received);
+                return $d >= $currentDate && $d <= $weekEnd;
             });
 
-            $newCustomers = $weekCarpets->filter(function($carpet) use ($currentDate) {
-                return !Carpet::where('phone', $carpet->phone)
-                    ->where('date_received', '<', $currentDate)
+            $newCustomers = $weekOrders->filter(function($order) use ($currentDate) {
+                $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+                if (empty($uniqueIds)) return false;
+                return !DB::table('order_items')
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                    ->whereIn('order_items.unique_id', $uniqueIds)
+                    ->where('orders.date_received', '<', $currentDate)
                     ->exists();
             })->count();
 
-            $returningCustomers = $weekCarpets->count() - $newCustomers;
-
             $weeklyData[] = [
-                'label' => $currentDate->format('M d'),
-                'new' => $newCustomers,
-                'returning' => $returningCustomers
+                'label'     => $currentDate->format('M d'),
+                'new'       => $newCustomers,
+                'returning' => $weekOrders->count() - $newCustomers,
             ];
 
             $currentDate->addWeek();
@@ -439,41 +373,43 @@ class ReportController extends Controller
 
         return [
             'chart' => [
-                'labels' => array_column($weeklyData, 'label'),
-                'new' => array_column($weeklyData, 'new'),
-                'returning' => array_column($weeklyData, 'returning')
+                'labels'    => array_column($weeklyData, 'label'),
+                'new'       => array_column($weeklyData, 'new'),
+                'returning' => array_column($weeklyData, 'returning'),
             ],
             'totals' => [
-                'new' => array_sum(array_column($weeklyData, 'new')),
-                'returning' => array_sum(array_column($weeklyData, 'returning'))
+                'new'       => array_sum(array_column($weeklyData, 'new')),
+                'returning' => array_sum(array_column($weeklyData, 'returning')),
             ]
         ];
     }
 
-    private function getLaundryCustomerAnalytics($laundry, $fromDate, $toDate)
+    private function getLaundryCustomerAnalytics($orders, $fromDate, $toDate)
     {
-        $weeklyData = [];
+        $weeklyData  = [];
         $currentDate = $fromDate->copy()->startOfWeek();
-        
+
         while ($currentDate <= $toDate) {
-            $weekEnd = $currentDate->copy()->endOfWeek();
-            $weekLaundry = $laundry->filter(function($item) use ($currentDate, $weekEnd) {
-                $orderDate = Carbon::parse($item->date_received);
-                return $orderDate >= $currentDate && $orderDate <= $weekEnd;
+            $weekEnd    = $currentDate->copy()->endOfWeek();
+            $weekOrders = $orders->filter(function($order) use ($currentDate, $weekEnd) {
+                $d = Carbon::parse($order->date_received);
+                return $d >= $currentDate && $d <= $weekEnd;
             });
 
-            $newCustomers = $weekLaundry->filter(function($item) use ($currentDate) {
-                return !Laundry::where('phone', $item->phone)
-                    ->where('date_received', '<', $currentDate)
+            $newCustomers = $weekOrders->filter(function($order) use ($currentDate) {
+                $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+                if (empty($uniqueIds)) return false;
+                return !DB::table('order_items')
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                    ->whereIn('order_items.unique_id', $uniqueIds)
+                    ->where('orders.date_received', '<', $currentDate)
                     ->exists();
             })->count();
 
-            $returningCustomers = $weekLaundry->count() - $newCustomers;
-
             $weeklyData[] = [
-                'label' => $currentDate->format('M d'),
-                'new' => $newCustomers,
-                'returning' => $returningCustomers
+                'label'     => $currentDate->format('M d'),
+                'new'       => $newCustomers,
+                'returning' => $weekOrders->count() - $newCustomers,
             ];
 
             $currentDate->addWeek();
@@ -481,48 +417,49 @@ class ReportController extends Controller
 
         return [
             'chart' => [
-                'labels' => array_column($weeklyData, 'label'),
-                'new' => array_column($weeklyData, 'new'),
-                'returning' => array_column($weeklyData, 'returning')
+                'labels'    => array_column($weeklyData, 'label'),
+                'new'       => array_column($weeklyData, 'new'),
+                'returning' => array_column($weeklyData, 'returning'),
             ],
             'totals' => [
-                'new' => array_sum(array_column($weeklyData, 'new')),
-                'returning' => array_sum(array_column($weeklyData, 'returning'))
+                'new'       => array_sum(array_column($weeklyData, 'new')),
+                'returning' => array_sum(array_column($weeklyData, 'returning')),
             ]
         ];
     }
 
     public function pendingCarpets()
     {
-        // Get all pending delivery carpets
-        $pendingDelivery = Carpet::where('delivered', 'Not Delivered')
+        $pendingDelivery = Order::with('items')
+            ->where('type', 'carpet')
+            ->where('delivered', 'Not Delivered')
             ->orderBy('date_received', 'asc')
             ->get()
-            ->map(function($carpet) {
-                $carpet->aging_days = Carbon::parse($carpet->date_received)->diffInDays(now());
-                return $carpet;
+            ->map(function($order) {
+                $order->aging_days = Carbon::parse($order->date_received)->diffInDays(now());
+                return $order;
             });
 
-        // Get all unpaid carpets
-        $unpaidCarpets = Carpet::where('payment_status', 'Not Paid')
+        $unpaidOrders = Order::with('items')
+            ->where('type', 'carpet')
+            ->where('payment_status', 'Not Paid')
             ->orderBy('date_received', 'asc')
             ->get()
-            ->map(function($carpet) {
-                $carpet->aging_days = Carbon::parse($carpet->date_received)->diffInDays(now());
-                return $carpet;
+            ->map(function($order) {
+                $order->aging_days = Carbon::parse($order->date_received)->diffInDays(now());
+                return $order;
             });
 
-        // Calculate summary metrics
         $pendingCount = $pendingDelivery->count();
-        $unpaidCount = $unpaidCarpets->count();
-        $unpaidValue = $unpaidCarpets->sum('price');
+        $unpaidCount  = $unpaidOrders->count();
+        $unpaidValue  = $unpaidOrders->sum('total');
         $avgAgingDays = $pendingDelivery->count() > 0
             ? round($pendingDelivery->avg('aging_days'), 1)
             : 0;
 
         return view('reports.pending_carpets', compact(
             'pendingDelivery',
-            'unpaidCarpets',
+            'unpaidOrders',
             'pendingCount',
             'unpaidCount',
             'unpaidValue',

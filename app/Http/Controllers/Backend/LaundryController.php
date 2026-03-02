@@ -7,6 +7,7 @@ use App\Http\Requests\StoreLaundryRequest;
 use App\Http\Requests\UpdateLaundryRequest;
 use Illuminate\Http\Request;
 use App\Models\Laundry;
+use App\Models\Order;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
@@ -262,8 +263,7 @@ class LaundryController extends Controller
 
     public function downloadAllLaundry()
 {
-    // Fetch all Laundry records.
-    $laundryRecords = \App\Models\Laundry::all();
+    $orders = Order::with('items')->where('type', 'laundry')->get();
     $filename = 'laundry_all.csv';
     $includePhone = Gate::allows('admin.all');
 
@@ -272,29 +272,21 @@ class LaundryController extends Controller
         'Content-Disposition' => 'attachment; filename=' . $filename,
     ];
 
-    $columns = $includePhone
-        ? ['Name', 'Phone', 'Price', 'Total', 'Date Received']
-        : ['Name', 'Price', 'Total', 'Date Received'];
-
-    $callback = function() use ($laundryRecords, $columns, $includePhone) {
+    $callback = function() use ($orders, $includePhone) {
         $file = fopen('php://output', 'w');
-        fputcsv($file, $columns);
-        foreach ($laundryRecords as $record) {
-            $row = $includePhone
-                ? [
-                    $record->name,
-                    $record->phone,
-                    $record->price,
-                    $record->total,
-                    $record->date_received,
-                ]
-                : [
-                    $record->name,
-                    $record->price,
-                    $record->total,
-                    $record->date_received,
-                ];
-            fputcsv($file, $row);
+        if ($includePhone) {
+            fputcsv($file, ['Name', 'Phone', 'Item', 'Qty', 'Unit Price', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+        } else {
+            fputcsv($file, ['Name', 'Item', 'Qty', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+        }
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                if ($includePhone) {
+                    fputcsv($file, [$order->name, $order->phone, $item->description, $item->quantity, $item->unit_price, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
+                } else {
+                    fputcsv($file, [$order->name, $item->description, $item->quantity, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
+                }
+            }
         }
         fclose($file);
     };
@@ -303,180 +295,146 @@ class LaundryController extends Controller
 }
 
 public function viewLaundryByMonth(Request $request)
-    {
+{
+    $month = (int) $request->input('month', Carbon::now()->format('m'));
+    $year  = (int) $request->input('year', Carbon::now()->format('Y'));
 
-        $month = (int) $request->input('month', Carbon::now()->format('m'));
-        $year  = (int) $request->input('year', Carbon::now()->format('Y'));
+    $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
+    $endDate   = $startDate->copy()->endOfMonth();
 
-        // Determine the start and end of that month
-        $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
-        $endDate   = $startDate->copy()->endOfMonth();
+    $orders = Order::with('items')
+        ->where('type', 'laundry')
+        ->whereBetween('date_received', [$startDate, $endDate])
+        ->get();
 
+    $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
+    $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
+    $grandTotal  = $totalPaid + $totalUnpaid;
 
-        $laundryRecords = Laundry::whereBetween('date_received', [$startDate, $endDate])->get();
+    // New clients: unique IDs in this order have never appeared before this month
+    $newOrders = $orders->filter(function ($order) use ($startDate) {
+        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+        if (empty($uniqueIds)) return false;
+        return !DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->whereIn('order_items.unique_id', $uniqueIds)
+            ->where('orders.date_received', '<', $startDate)
+            ->exists();
+    });
 
+    return view('reports.laundry_month', [
+        'month'      => $month,
+        'year'       => $year,
+        'orders'     => $orders,
+        'newOrders'  => $newOrders,
+        'totalPaid'  => $totalPaid,
+        'totalUnpaid'=> $totalUnpaid,
+        'grandTotal' => $grandTotal,
+    ]);
+}
 
-        $paidLaundry   = $laundryRecords->where('payment_status', 'Paid');
-        $unpaidLaundry = $laundryRecords->where('payment_status', 'Not Paid');
-        $totalPaid = $paidLaundry->sum(function($item) {
-            return is_numeric($item->total) ? (float) $item->total : 0;
-        });
-        $totalUnpaid = $unpaidLaundry->sum(function($item) {
-            return is_numeric($item->total) ? (float) $item->total : 0;
-        });
-        $grandTotal    = $totalPaid + $totalUnpaid;
+public function downloadLaundryByMonth(Request $request)
+{
+    $month = (int) $request->input('month', Carbon::now()->format('m'));
+    $year  = (int) $request->input('year', Carbon::now()->format('Y'));
 
-        $newLaundry = $laundryRecords->filter(function ($record) use ($startDate) {
-            return !Laundry::where('unique_id', $record->unique_id)
-                ->where('date_received', '<', $startDate)
-                ->exists();
-        });
+    $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
+    $endDate   = $startDate->copy()->endOfMonth();
 
-        return view('reports.laundry_month', [
-            'month'       => $month,
-            'year'        => $year,
-            'laundry'     => $laundryRecords,
-            'newLaundry'  => $newLaundry,
-            'totalPaid'   => $totalPaid,
-            'totalUnpaid' => $totalUnpaid,
-            'grandTotal'  => $grandTotal,
-        ]);
-    }
+    $orders = Order::with('items')
+        ->where('type', 'laundry')
+        ->whereBetween('date_received', [$startDate, $endDate])
+        ->get();
 
+    $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
+    $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
+    $grandTotal  = $totalPaid + $totalUnpaid;
 
-    public function downloadLaundryByMonth(Request $request)
-    {
-        $month = (int) $request->input('month', Carbon::now()->format('m'));
-        $year  = (int) $request->input('year', Carbon::now()->format('Y'));
+    $includePhone = Gate::allows('admin.all');
 
-        $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
-        $endDate   = $startDate->copy()->endOfMonth();
+    $filename = "laundry_{$year}_{$month}.csv";
+    $headers = ['Content-Type' => 'text/csv', 'Content-Disposition' => "attachment; filename={$filename}"];
 
-        $laundryRecords = Laundry::whereBetween('date_received', [$startDate, $endDate])->get();
+    $callback = function() use ($orders, $totalPaid, $totalUnpaid, $grandTotal, $includePhone) {
+        $file = fopen('php://output', 'w');
 
-        // Calculate totals
-        $paidLaundry   = $laundryRecords->where('payment_status', 'Paid');
-        $unpaidLaundry = $laundryRecords->where('payment_status', 'Not Paid');
-        $totalPaid = $paidLaundry->sum(function($item) {
-            return is_numeric($item->total) ? (float) $item->total : 0;
-        });
-        $totalUnpaid = $unpaidLaundry->sum(function($item) {
-            return is_numeric($item->total) ? (float) $item->total : 0;
-        });
-        $grandTotal    = $totalPaid + $totalUnpaid;
+        if ($includePhone) {
+            fputcsv($file, ['Name', 'Phone', 'Item', 'Qty', 'Unit Price', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+        } else {
+            fputcsv($file, ['Name', 'Item', 'Qty', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+        }
 
-        // Check if user has admin.all permission
-        $includePhone = Gate::allows('admin.all');
-
-        $filename = "laundry_{$year}_{$month}.csv";
-        $headers = [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
-        ];
-
-        $callback = function() use ($laundryRecords, $totalPaid, $totalUnpaid, $grandTotal, $includePhone) {
-            $file = fopen('php://output', 'w');
-
-            // CSV header row - conditionally include Phone
-            if ($includePhone) {
-                fputcsv($file, ['Unique ID', 'Phone', 'Amount (KES)', 'Payment Status', 'Date Received']);
-            } else {
-                fputcsv($file, ['Unique ID', 'Amount (KES)', 'Payment Status', 'Date Received']);
-            }
-
-            // Rows - conditionally include phone
-            foreach ($laundryRecords as $record) {
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
                 if ($includePhone) {
-                    fputcsv($file, [
-                        $record->unique_id,
-                        $record->phone,
-                        $record->total,
-                        $record->payment_status,
-                        $record->date_received,
-                    ]);
+                    fputcsv($file, [$order->name, $order->phone, $item->description, $item->quantity, $item->unit_price, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
                 } else {
-                    fputcsv($file, [
-                        $record->unique_id,
-                        $record->total,
-                        $record->payment_status,
-                        $record->date_received,
-                    ]);
+                    fputcsv($file, [$order->name, $item->description, $item->quantity, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
                 }
             }
+        }
 
-            // Blank line
-            fputcsv($file, []);
-            // Totals
-            fputcsv($file, ['Total Paid Amount', $totalPaid]);
-            fputcsv($file, ['Total Unpaid Amount', $totalUnpaid]);
-            fputcsv($file, ['Grand Total', $grandTotal]);
+        fputcsv($file, []);
+        fputcsv($file, ['Total Paid Amount', $totalPaid]);
+        fputcsv($file, ['Total Unpaid Amount', $totalUnpaid]);
+        fputcsv($file, ['Grand Total', $grandTotal]);
 
-            fclose($file);
-        };
+        fclose($file);
+    };
 
-        return response()->stream($callback, 200, $headers);
-    }
+    return response()->stream($callback, 200, $headers);
+}
 
-    public function downloadNewLaundryByMonth(Request $request)
-    {
-        $month = (int) $request->input('month', Carbon::now()->format('m'));
-        $year  = (int) $request->input('year', Carbon::now()->format('Y'));
+public function downloadNewLaundryByMonth(Request $request)
+{
+    $month = (int) $request->input('month', Carbon::now()->format('m'));
+    $year  = (int) $request->input('year', Carbon::now()->format('Y'));
 
-        $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
-        $endDate   = $startDate->copy()->endOfMonth();
+    $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
+    $endDate   = $startDate->copy()->endOfMonth();
 
-        $laundryRecords = Laundry::whereBetween('date_received', [$startDate, $endDate])->get();
+    $orders = Order::with('items')
+        ->where('type', 'laundry')
+        ->whereBetween('date_received', [$startDate, $endDate])
+        ->get();
 
-        // Identify new records
-        $newLaundry = $laundryRecords->filter(function ($record) use ($startDate) {
-            return !Laundry::where('unique_id', $record->unique_id)
-                ->where('date_received', '<', $startDate)
-                ->exists();
-        });
+    $newOrders = $orders->filter(function ($order) use ($startDate) {
+        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+        if (empty($uniqueIds)) return false;
+        return !DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->whereIn('order_items.unique_id', $uniqueIds)
+            ->where('orders.date_received', '<', $startDate)
+            ->exists();
+    });
 
-        // Check if user has admin.all permission
-        $includePhone = Gate::allows('admin.all');
+    $includePhone = Gate::allows('admin.all');
 
-        $filename = "new_laundry_{$year}_{$month}.csv";
-        $headers = [
-            'Content-Type'        => 'text/csv',
-            'Content-Disposition' => "attachment; filename={$filename}",
-        ];
+    $filename = "new_laundry_clients_{$year}_{$month}.csv";
+    $headers = ['Content-Type' => 'text/csv', 'Content-Disposition' => "attachment; filename={$filename}"];
 
-        $callback = function() use ($newLaundry, $includePhone) {
-            $file = fopen('php://output', 'w');
+    $callback = function() use ($newOrders, $includePhone) {
+        $file = fopen('php://output', 'w');
 
-            // CSV header - conditionally include Phone
+        if ($includePhone) {
+            fputcsv($file, ['Name', 'Phone', 'Items', 'Order Total', 'Payment Status', 'Date Received']);
+        } else {
+            fputcsv($file, ['Name', 'Items', 'Order Total', 'Payment Status', 'Date Received']);
+        }
+
+        foreach ($newOrders as $order) {
+            $items = $order->items->map(fn($i) => ($i->description ?? '') . ' x' . ($i->quantity ?? 1))->implode('; ');
             if ($includePhone) {
-                fputcsv($file, ['Unique ID', 'Phone', 'Amount (KES)', 'Payment Status', 'Date Received']);
+                fputcsv($file, [$order->name, $order->phone, $items, $order->total, $order->payment_status, $order->date_received]);
             } else {
-                fputcsv($file, ['Unique ID', 'Amount (KES)', 'Payment Status', 'Date Received']);
+                fputcsv($file, [$order->name, $items, $order->total, $order->payment_status, $order->date_received]);
             }
+        }
 
-            // Rows - conditionally include phone
-            foreach ($newLaundry as $record) {
-                if ($includePhone) {
-                    fputcsv($file, [
-                        $record->unique_id,
-                        $record->phone,
-                        $record->total,
-                        $record->payment_status,
-                        $record->date_received,
-                    ]);
-                } else {
-                    fputcsv($file, [
-                        $record->unique_id,
-                        $record->total,
-                        $record->payment_status,
-                        $record->date_received,
-                    ]);
-                }
-            }
+        fclose($file);
+    };
 
-            fclose($file);
-        };
-
-        return response()->stream($callback, 200, $headers);
-    }
+    return response()->stream($callback, 200, $headers);
+}
 
 }

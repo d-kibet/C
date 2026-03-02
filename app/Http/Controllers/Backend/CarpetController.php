@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCarpetRequest;
 use App\Http\Requests\UpdateCarpetRequest;
 use App\Models\Carpet;
+use App\Models\Order;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -140,14 +141,17 @@ class CarpetController extends Controller
         $todayLaundryCount = \App\Models\Order::where('type', 'laundry')
                                 ->whereDate('date_received', $today)->count();
 
-        // New clients today: phones that have no order before today
-        $todayPhones = \App\Models\Order::whereDate('date_received', $today)
-                            ->distinct()->pluck('phone');
+        // New clients today: orders whose unique IDs have never appeared before today
+        $todayOrders = \App\Models\Order::with('items')->whereDate('date_received', $today)->get();
 
-        $todayClientCount = $todayPhones->filter(function ($phone) use ($today) {
-            return !\App\Models\Order::where('phone', $phone)
-                        ->where('date_received', '<', $today)
-                        ->exists();
+        $todayClientCount = $todayOrders->filter(function ($order) use ($today) {
+            $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+            if (empty($uniqueIds)) return false;
+            return !DB::table('order_items')
+                ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                ->whereIn('order_items.unique_id', $uniqueIds)
+                ->where('orders.date_received', '<', $today)
+                ->exists();
         })->count();
 
         // Today's revenue (from orders.total which is already net of discounts)
@@ -472,44 +476,30 @@ class CarpetController extends Controller
 
     public function downloadAllCarpets()
 {
-    // Fetch all Carpet records.
-    $carpets = \App\Models\Carpet::all();
+    $orders = Order::with('items')->where('type', 'carpet')->get();
     $filename = 'carpets_all.csv';
     $includePhone = Gate::allows('admin.all');
 
-    // Define headers including Content-Disposition.
     $headers = [
         'Content-Type' => 'text/csv',
         'Content-Disposition' => 'attachment; filename=' . $filename,
     ];
 
-    $columns = $includePhone
-        ? ['Unique ID', 'Size', 'Price', 'Phone', 'Payment Status', 'Date Received']
-        : ['Unique ID', 'Size', 'Price', 'Payment Status', 'Date Received'];
-
-    $callback = function() use ($carpets, $columns, $includePhone) {
+    $callback = function() use ($orders, $includePhone) {
         $file = fopen('php://output', 'w');
-        // Output header row.
-        fputcsv($file, $columns);
-        // Output each carpet record.
-        foreach ($carpets as $carpet) {
-            $row = $includePhone
-                ? [
-                    $carpet->uniqueid,
-                    $carpet->size,
-                    $carpet->price,
-                    $carpet->phone,
-                    $carpet->payment_status,
-                    $carpet->date_received,
-                ]
-                : [
-                    $carpet->uniqueid,
-                    $carpet->size,
-                    $carpet->price,
-                    $carpet->payment_status,
-                    $carpet->date_received,
-                ];
-            fputcsv($file, $row);
+        if ($includePhone) {
+            fputcsv($file, ['Unique ID', 'Size', 'Name', 'Phone', 'Order Total', 'Payment Status', 'Date Received']);
+        } else {
+            fputcsv($file, ['Unique ID', 'Size', 'Order Total', 'Payment Status', 'Date Received']);
+        }
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                if ($includePhone) {
+                    fputcsv($file, [$item->unique_id, $item->size, $order->name, $order->phone, $order->total, $order->payment_status, $order->date_received]);
+                } else {
+                    fputcsv($file, [$item->unique_id, $item->size, $order->total, $order->payment_status, $order->date_received]);
+                }
+            }
         }
         fclose($file);
     };
@@ -519,47 +509,45 @@ class CarpetController extends Controller
 
 public function viewCarpetsByMonth(Request $request)
 {
-    // Default to current month/year if none provided
     $month = (int) $request->input('month', Carbon::now()->format('m'));
     $year  = (int) $request->input('year', Carbon::now()->format('Y'));
 
-    // Determine the start and end of that month
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
 
-    // Fetch all carpets in that month
-    $carpets = Carpet::whereBetween('date_received', [$startDate, $endDate])->get();
+    $orders = Order::with('items')
+        ->where('type', 'carpet')
+        ->whereBetween('date_received', [$startDate, $endDate])
+        ->get();
 
-    // Calculate totals (Paid, Unpaid, Grand)
-    $paidCarpets   = $carpets->where('payment_status', 'Paid');
-    $unpaidCarpets = $carpets->where('payment_status', 'Not Paid');
-    $totalPaid     = $paidCarpets->sum('price');
-    $totalUnpaid   = $unpaidCarpets->sum('price');
-    $grandTotal    = $totalPaid + $totalUnpaid;
+    $totalPaid   = $orders->where('payment_status', 'Paid')->sum('total');
+    $totalUnpaid = $orders->where('payment_status', 'Not Paid')->sum('total');
+    $grandTotal  = $totalPaid + $totalUnpaid;
 
-    // Identify new clients by uniqueid
-    // A client is new if there's no existing record with that uniqueid
-    // and date_received < $startDate
-    $newCarpets = $carpets->filter(function ($carpet) use ($startDate) {
-        // If a record exists for this uniqueid with date_received < startDate, not new
-        return !Carpet::where('uniqueid', $carpet->uniqueid)
-            ->where('date_received', '<', $startDate)
+    // New clients: unique IDs in this order have never appeared before this month
+    $newOrders = $orders->filter(function ($order) use ($startDate) {
+        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+        if (empty($uniqueIds)) return false;
+        return !DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->whereIn('order_items.unique_id', $uniqueIds)
+            ->where('orders.date_received', '<', $startDate)
             ->exists();
     });
 
     return view('reports.carpets_month', [
-        'month'        => $month,
-        'year'         => $year,
-        'carpets'      => $carpets,
-        'newCarpets'   => $newCarpets,
-        'totalPaid'    => $totalPaid,
-        'totalUnpaid'  => $totalUnpaid,
-        'grandTotal'   => $grandTotal,
+        'month'      => $month,
+        'year'       => $year,
+        'orders'     => $orders,
+        'newOrders'  => $newOrders,
+        'totalPaid'  => $totalPaid,
+        'totalUnpaid'=> $totalUnpaid,
+        'grandTotal' => $grandTotal,
     ]);
 }
 
 /**
- * Download all carpets for a given month/year as CSV
+ * Download all carpet orders for a given month/year as CSV (one row per item)
  */
 public function downloadCarpetsByMonth(Request $request)
 {
@@ -569,16 +557,15 @@ public function downloadCarpetsByMonth(Request $request)
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
 
-    $carpets = Carpet::whereBetween('date_received', [$startDate, $endDate])->get();
+    $orders = Order::with('items')
+        ->where('type', 'carpet')
+        ->whereBetween('date_received', [$startDate, $endDate])
+        ->get();
 
-    // Totals
-    $paidCarpets   = $carpets->where('payment_status', 'Paid');
-    $unpaidCarpets = $carpets->where('payment_status', 'Not Paid');
-    $totalPaid     = $paidCarpets->sum('price');
-    $totalUnpaid   = $unpaidCarpets->sum('price');
-    $grandTotal    = $totalPaid + $totalUnpaid;
+    $totalPaid   = $orders->where('payment_status', 'Paid')->sum('total');
+    $totalUnpaid = $orders->where('payment_status', 'Not Paid')->sum('total');
+    $grandTotal  = $totalPaid + $totalUnpaid;
 
-    // Check if user has admin.all permission
     $includePhone = Gate::allows('admin.all');
 
     $filename = "carpets_{$year}_{$month}.csv";
@@ -587,42 +574,26 @@ public function downloadCarpetsByMonth(Request $request)
         'Content-Disposition' => "attachment; filename={$filename}",
     ];
 
-    $callback = function() use ($carpets, $totalPaid, $totalUnpaid, $grandTotal, $includePhone) {
+    $callback = function() use ($orders, $totalPaid, $totalUnpaid, $grandTotal, $includePhone) {
         $file = fopen('php://output', 'w');
 
-        // Header row - conditionally include Phone
         if ($includePhone) {
-            fputcsv($file, ['Unique ID', 'Size', 'Price', 'Payment Status', 'Phone', 'Date Received']);
+            fputcsv($file, ['Unique ID', 'Size', 'Name', 'Phone', 'Order Total', 'Payment Status', 'Date Received']);
         } else {
-            fputcsv($file, ['Unique ID', 'Size', 'Price', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Unique ID', 'Size', 'Order Total', 'Payment Status', 'Date Received']);
         }
 
-        // Data rows - conditionally include phone
-        foreach ($carpets as $carpet) {
-            if ($includePhone) {
-                fputcsv($file, [
-                    $carpet->uniqueid,
-                    $carpet->size,
-                    $carpet->price,
-                    $carpet->payment_status,
-                    $carpet->phone,
-                    $carpet->date_received,
-                ]);
-            } else {
-                fputcsv($file, [
-                    $carpet->uniqueid,
-                    $carpet->size,
-                    $carpet->price,
-                    $carpet->payment_status,
-                    $carpet->date_received,
-                ]);
+        foreach ($orders as $order) {
+            foreach ($order->items as $item) {
+                if ($includePhone) {
+                    fputcsv($file, [$item->unique_id, $item->size, $order->name, $order->phone, $order->total, $order->payment_status, $order->date_received]);
+                } else {
+                    fputcsv($file, [$item->unique_id, $item->size, $order->total, $order->payment_status, $order->date_received]);
+                }
             }
         }
 
-        // Blank line
         fputcsv($file, []);
-
-        // Totals
         fputcsv($file, ['Total Paid Amount', $totalPaid]);
         fputcsv($file, ['Total Unpaid Amount', $totalUnpaid]);
         fputcsv($file, ['Grand Total', $grandTotal]);
@@ -634,7 +605,7 @@ public function downloadCarpetsByMonth(Request $request)
 }
 
 /**
- * Download new clients only for a given month/year as CSV
+ * Download new carpet clients only for a given month/year as CSV
  */
 public function downloadNewCarpetsByMonth(Request $request)
 {
@@ -644,55 +615,44 @@ public function downloadNewCarpetsByMonth(Request $request)
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
 
-    $carpets = Carpet::whereBetween('date_received', [$startDate, $endDate])->get();
+    $orders = Order::with('items')
+        ->where('type', 'carpet')
+        ->whereBetween('date_received', [$startDate, $endDate])
+        ->get();
 
-    // Identify new carpets
-    $newCarpets = $carpets->filter(function ($carpet) use ($startDate) {
-        return !Carpet::where('uniqueid', $carpet->uniqueid)
-            ->where('date_received', '<', $startDate)
+    $newOrders = $orders->filter(function ($order) use ($startDate) {
+        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
+        if (empty($uniqueIds)) return false;
+        return !DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->whereIn('order_items.unique_id', $uniqueIds)
+            ->where('orders.date_received', '<', $startDate)
             ->exists();
     });
 
-    // Check if user has admin.all permission
     $includePhone = Gate::allows('admin.all');
 
-    $filename = "new_clients_{$year}_{$month}.csv";
+    $filename = "new_carpet_clients_{$year}_{$month}.csv";
     $headers = [
         'Content-Type'        => 'text/csv',
         'Content-Disposition' => "attachment; filename={$filename}",
     ];
 
-    $callback = function() use ($newCarpets, $includePhone) {
+    $callback = function() use ($newOrders, $includePhone) {
         $file = fopen('php://output', 'w');
 
-        // Header row - conditionally include Phone
         if ($includePhone) {
-            fputcsv($file, ['Unique ID', 'Phone', 'Name', 'Size', 'Price', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Name', 'Phone', 'Unique IDs', 'Total (KES)', 'Payment Status', 'Date Received']);
         } else {
-            fputcsv($file, ['Unique ID', 'Name', 'Size', 'Price', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Name', 'Unique IDs', 'Total (KES)', 'Payment Status', 'Date Received']);
         }
 
-        // Data rows - conditionally include phone
-        foreach ($newCarpets as $carpet) {
+        foreach ($newOrders as $order) {
+            $uniqueIds = $order->items->pluck('unique_id')->implode(', ');
             if ($includePhone) {
-                fputcsv($file, [
-                    $carpet->uniqueid,
-                    $carpet->phone,
-                    $carpet->name,
-                    $carpet->size,
-                    $carpet->price,
-                    $carpet->payment_status,
-                    $carpet->date_received,
-                ]);
+                fputcsv($file, [$order->name, $order->phone, $uniqueIds, $order->total, $order->payment_status, $order->date_received]);
             } else {
-                fputcsv($file, [
-                    $carpet->uniqueid,
-                    $carpet->name,
-                    $carpet->size,
-                    $carpet->price,
-                    $carpet->payment_status,
-                    $carpet->date_received,
-                ]);
+                fputcsv($file, [$order->name, $uniqueIds, $order->total, $order->payment_status, $order->date_received]);
             }
         }
 

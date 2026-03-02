@@ -6,7 +6,7 @@
         <!-- Page Title / Filter Row -->
         <div class="row mb-3 align-items-center">
             <div class="col">
-                <h4 class="page-title mb-0">Carpet Records for {{ date('F', mktime(0, 0, 0, $month, 1)) }} {{ $year }}</h4>
+                <h4 class="page-title mb-0">Carpet Orders for {{ date('F', mktime(0, 0, 0, $month, 1)) }} {{ $year }}</h4>
             </div>
             <div class="col-auto">
                 <form method="GET" action="{{ route('reports.carpets.viewMonth') }}" class="d-flex align-items-center gap-2">
@@ -19,9 +19,7 @@
                     </select>
                     <select name="year" class="form-select form-select-sm" style="width:auto;">
                         @for($y = date('Y') - 5; $y <= date('Y') + 1; $y++)
-                            <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>
-                                {{ $y }}
-                            </option>
+                            <option value="{{ $y }}" {{ $y == $year ? 'selected' : '' }}>{{ $y }}</option>
                         @endfor
                     </select>
                     <button type="submit" class="btn btn-primary btn-sm">Filter</button>
@@ -79,10 +77,10 @@
             @endcan
         </div>
 
-        <!-- All Carpets Table -->
+        <!-- All Carpet Orders Table -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">All Carpets ({{ date('F Y', mktime(0, 0, 0, $month, 1, $year)) }})</h5>
+                <h5 class="mb-0">All Carpet Orders ({{ date('F Y', mktime(0, 0, 0, $month, 1, $year)) }})</h5>
                 <span id="activeFilter" class="badge bg-secondary" style="display:none;"></span>
             </div>
             <div class="card-body">
@@ -90,33 +88,35 @@
                     <table id="allCarpetsTable" class="table table-striped table-bordered">
                         <thead>
                             <tr>
-                                <th>Unique ID</th>
+                                <th>Customer</th>
                                 <th>Phone</th>
-                                <th>Size</th>
-                                <th>Price (KES)</th>
+                                <th>Unique IDs</th>
+                                <th>Total (KES)</th>
                                 <th>Payment Status</th>
                                 <th>Date Received</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($carpets as $carpet)
+                            @forelse($orders as $order)
                                 <tr>
-                                    <td>{{ $carpet->uniqueid }}</td>
-                                    <td>{{ $carpet->phone }}</td>
-                                    <td>{{ $carpet->size }}</td>
-                                    <td>{{ number_format($carpet->price, 2) }}</td>
-                                    <td data-filter="{{ $carpet->payment_status }}">
-                                        @if($carpet->payment_status == 'Paid')
+                                    <td>{{ $order->name }}</td>
+                                    <td>{{ $order->phone }}</td>
+                                    <td>{{ $order->items->pluck('unique_id')->implode(', ') }}</td>
+                                    <td>{{ number_format($order->total, 2) }}</td>
+                                    <td data-filter="{{ $order->payment_status }}">
+                                        @if($order->payment_status == 'Paid')
                                             <span class="badge bg-success">Paid</span>
+                                        @elseif($order->payment_status == 'Partial')
+                                            <span class="badge bg-warning text-dark">Partial</span>
                                         @else
                                             <span class="badge bg-danger">Not Paid</span>
                                         @endif
                                     </td>
-                                    <td>{{ $carpet->date_received }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="6">No records found for this month.</td>
+                                    <td colspan="6">No carpet orders found for this month.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -135,29 +135,31 @@
                     <table id="newCarpetsTable" class="table table-striped table-bordered">
                         <thead>
                             <tr>
-                                <th>Unique ID</th>
+                                <th>Customer</th>
                                 <th>Phone</th>
-                                <th>Size</th>
-                                <th>Price (KES)</th>
+                                <th>Unique IDs</th>
+                                <th>Total (KES)</th>
                                 <th>Payment Status</th>
                                 <th>Date Received</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @forelse($newCarpets as $carpet)
+                            @forelse($newOrders as $order)
                                 <tr>
-                                    <td>{{ $carpet->uniqueid }}</td>
-                                    <td>{{ $carpet->phone }}</td>
-                                    <td>{{ $carpet->size }}</td>
-                                    <td>{{ number_format($carpet->price, 2) }}</td>
+                                    <td>{{ $order->name }}</td>
+                                    <td>{{ $order->phone }}</td>
+                                    <td>{{ $order->items->pluck('unique_id')->implode(', ') }}</td>
+                                    <td>{{ number_format($order->total, 2) }}</td>
                                     <td>
-                                        @if($carpet->payment_status == 'Paid')
+                                        @if($order->payment_status == 'Paid')
                                             <span class="badge bg-success">Paid</span>
+                                        @elseif($order->payment_status == 'Partial')
+                                            <span class="badge bg-warning text-dark">Partial</span>
                                         @else
                                             <span class="badge bg-danger">Not Paid</span>
                                         @endif
                                     </td>
-                                    <td>{{ $carpet->date_received }}</td>
+                                    <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
                                 </tr>
                             @empty
                                 <tr>
@@ -177,20 +179,10 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    // Use data-filter attribute for Payment Status column so search is exact
     var allTable = $('#allCarpetsTable').DataTable({
         order: [[5, 'desc']],
         autoWidth: false,
-        pageLength: 25,
-        columnDefs: [{
-            targets: 4,
-            render: function(data, type, row, meta) {
-                if (type === 'filter') {
-                    return $(data).closest('td').attr('data-filter') || $(meta.settings.aoData[meta.row].anCells[4]).attr('data-filter') || data;
-                }
-                return data;
-            }
-        }]
+        pageLength: 25
     });
 
     var newTable = $('#newCarpetsTable').DataTable({
@@ -214,13 +206,11 @@ $(document).ready(function() {
     $('.carpet-stat-btn').on('click', function() {
         var filter = $(this).data('filter');
 
-        // Toggle off if same button clicked again
         if (window.carpetPaymentFilter === filter && filter !== '') {
             filter = '';
         }
         window.carpetPaymentFilter = filter;
 
-        // Update button styles
         $('.carpet-stat-btn').each(function() {
             var f = $(this).data('filter');
             $(this).removeClass('btn-success btn-danger btn-primary btn-outline-success btn-outline-danger btn-outline-primary');
@@ -233,7 +223,6 @@ $(document).ready(function() {
             }
         });
 
-        // Show/hide active filter badge
         var badge = $('#activeFilter');
         if (filter) {
             badge.text('Showing: ' + filter).show();

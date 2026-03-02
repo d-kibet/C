@@ -8,9 +8,9 @@
                 <h4>Laundry Records Report</h4>
             </div>
             <div class="col-md-6 text-end">
-                <p class="mb-0"><strong>Total Paid:</strong> {{ $totalLaundryPaid }}</p>
-                <p class="mb-0"><strong>Total Unpaid:</strong> {{ $totalLaundryUnpaid }}</p>
-                <p class="mb-0"><strong>Grand Total:</strong> {{ $grandTotal }}</p>
+                <p class="mb-0"><strong>Total Paid:</strong> KES {{ number_format($totalLaundryPaid, 2) }}</p>
+                <p class="mb-0"><strong>Total Unpaid:</strong> KES {{ number_format($totalLaundryUnpaid, 2) }}</p>
+                <p class="mb-0"><strong>Grand Total:</strong> KES {{ number_format($grandTotal, 2) }}</p>
             </div>
         </div>
 
@@ -27,59 +27,75 @@
             </div>
         </form>
 
-        <!-- Paid Laundry Section -->
-        <h5>Paid Laundry</h5>
+        <!-- Paid Laundry -->
+        <h5>Paid Laundry Orders</h5>
         <div class="table-responsive mb-4">
             <table class="table table-bordered">
-                <thead>
+                <thead class="table-light">
                     <tr>
-                        <th>Name</th>
+                        <th>Customer</th>
                         <th>Phone</th>
-                        <th>Amount Paid</th>
+                        <th>Items</th>
+                        <th>Total (KES)</th>
                         <th>Date Received</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($paidLaundry as $laundry)
-                    <tr>
-                        <td>{{ $laundry->name }}</td>
-                        <td>{{ $laundry->phone }}</td>
-                        <td>KES {{ number_format($laundry->total, 2) }}</td>
-                        <td>{{ $laundry->date_received }}</td>
-                    </tr>
+                    @forelse($paidOrders as $order)
+                        <tr>
+                            <td>{{ $order->name }}</td>
+                            <td>{{ $order->phone }}</td>
+                            <td>
+                                @foreach($order->items as $item)
+                                    <span class="d-block">{{ $item->description }} &times; {{ $item->quantity }}</span>
+                                @endforeach
+                            </td>
+                            <td>{{ number_format($order->total, 2) }}</td>
+                            <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
+                        </tr>
                     @empty
-                    <tr>
-                        <td colspan="4">No paid laundry records found for the selected date.</td>
-                    </tr>
+                        <tr><td colspan="5" class="text-center text-muted">No paid laundry orders for this date.</td></tr>
                     @endforelse
                 </tbody>
             </table>
         </div>
 
-        <!-- Unpaid Laundry Section -->
-        <h5>Unpaid Laundry</h5>
+        <!-- Unpaid / Partial Laundry -->
+        <h5>Unpaid / Partial Laundry Orders</h5>
         <div class="table-responsive">
             <table class="table table-bordered">
-                <thead>
+                <thead class="table-light">
                     <tr>
-                        <th>Name</th>
+                        <th>Customer</th>
                         <th>Phone</th>
-                        <th>Amount Due</th>
+                        <th>Items</th>
+                        <th>Total (KES)</th>
+                        <th>Payment Status</th>
                         <th>Date Received</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @forelse($unpaidLaundry as $laundry)
-                    <tr>
-                        <td>{{ $laundry->name }}</td>
-                        <td>{{ $laundry->phone }}</td>
-                        <td>KES {{ number_format($laundry->total, 2) }}</td>
-                        <td>{{ $laundry->date_received }}</td>
-                    </tr>
+                    @forelse($unpaidOrders as $order)
+                        <tr>
+                            <td>{{ $order->name }}</td>
+                            <td>{{ $order->phone }}</td>
+                            <td>
+                                @foreach($order->items as $item)
+                                    <span class="d-block">{{ $item->description }} &times; {{ $item->quantity }}</span>
+                                @endforeach
+                            </td>
+                            <td>{{ number_format($order->total, 2) }}</td>
+                            <td>
+                                @if($order->payment_status === 'Partial')
+                                    <span class="badge bg-warning text-dark">Partial</span>
+                                @else
+                                    <span class="badge bg-danger">Not Paid</span>
+                                @endif
+                            </td>
+                            <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
+                        </tr>
                     @empty
-                    <tr>
-                        <td colspan="4">No unpaid laundry records found for the selected date.</td>
-                    </tr>
+                        <tr><td colspan="6" class="text-center text-muted">No unpaid laundry orders for this date.</td></tr>
                     @endforelse
                 </tbody>
             </table>

@@ -8,9 +8,9 @@
                 <h4>Carpets Report</h4>
             </div>
             <div class="col-md-6 text-end">
-                <p class="mb-0"><strong>Total Paid Amount:</strong> {{ $totalPaidCarpets }}</p>
-                <p class="mb-0"><strong>Total Unpaid Amount:</strong> {{ $totalUnpaidCarpets }}</p>
-                <p class="mb-0"><strong>Grand Total:</strong> {{ $totalPaidCarpets + $totalUnpaidCarpets }}</p>
+                <p class="mb-0"><strong>Total Paid Amount:</strong> KES {{ number_format($totalPaidCarpets, 2) }}</p>
+                <p class="mb-0"><strong>Total Unpaid Amount:</strong> KES {{ number_format($totalUnpaidCarpets, 2) }}</p>
+                <p class="mb-0"><strong>Grand Total:</strong> KES {{ number_format($totalPaidCarpets + $totalUnpaidCarpets, 2) }}</p>
             </div>
         </div>
 
@@ -26,40 +26,71 @@
             </div>
         </form>
 
-        @php
-            function renderCarpetTable($carpets) {
-                $html = '<div class="table-responsive"><table class="table table-bordered">
-                            <thead>
-                                <tr>
-                                    <th>Unique ID</th>
-                                    <th>Size</th>
-                                    <th>Price</th>
-                                    <th>Payment Status</th>
-                                    <th>Date Received</th>
-                                </tr>
-                            </thead>
-                            <tbody>';
-                foreach ($carpets as $carpet) {
-                    $html .= '<tr>
-                                <td>' . $carpet->uniqueid . '</td>
-                                <td>' . $carpet->size . '</td>
-                                <td>' . $carpet->price . '</td>
-                                <td>' . $carpet->payment_status . '</td>
-                                <td>' . $carpet->date_received . '</td>
-                              </tr>';
-                }
-                $html .= '</tbody></table></div>';
-                return $html;
-            }
-        @endphp
+        <!-- Paid Orders -->
+        <h5 class="mt-3">Paid Carpet Orders</h5>
+        <div class="table-responsive mb-4">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Customer</th>
+                        <th>Phone</th>
+                        <th>Unique IDs</th>
+                        <th>Total (KES)</th>
+                        <th>Date Received</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($paidOrders as $order)
+                        <tr>
+                            <td>{{ $order->name }}</td>
+                            <td>{{ $order->phone }}</td>
+                            <td>{{ $order->items->pluck('unique_id')->implode(', ') }}</td>
+                            <td>{{ number_format($order->total, 2) }}</td>
+                            <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="5" class="text-center text-muted">No paid carpet orders for this date.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
 
-        <!-- Paid Carpets Section -->
-        <h5>Paid Carpets</h5>
-        {!! renderCarpetTable($paidCarpets) !!}
-
-        <!-- Unpaid Carpets Section -->
-        <h5>Unpaid Carpets</h5>
-        {!! renderCarpetTable($unpaidCarpets) !!}
+        <!-- Unpaid / Partial Orders -->
+        <h5>Unpaid / Partial Carpet Orders</h5>
+        <div class="table-responsive">
+            <table class="table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Customer</th>
+                        <th>Phone</th>
+                        <th>Unique IDs</th>
+                        <th>Total (KES)</th>
+                        <th>Payment Status</th>
+                        <th>Date Received</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($unpaidOrders as $order)
+                        <tr>
+                            <td>{{ $order->name }}</td>
+                            <td>{{ $order->phone }}</td>
+                            <td>{{ $order->items->pluck('unique_id')->implode(', ') }}</td>
+                            <td>{{ number_format($order->total, 2) }}</td>
+                            <td>
+                                @if($order->payment_status === 'Partial')
+                                    <span class="badge bg-warning text-dark">Partial</span>
+                                @else
+                                    <span class="badge bg-danger">Not Paid</span>
+                                @endif
+                            </td>
+                            <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="text-center text-muted">No unpaid carpet orders for this date.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 @endsection
