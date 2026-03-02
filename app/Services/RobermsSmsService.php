@@ -66,90 +66,101 @@ class RobermsSmsService
      */
     public function sendSms($phoneNumber, $message, $uniqueIdentifier = null, $type = 'manual')
     {
+        $identifier     = $uniqueIdentifier ?? uniqid('sms_');
+        $formattedPhone = $this->formatPhoneNumber($phoneNumber);
+        $logPhone       = $formattedPhone ?? $phoneNumber;
+
+        // PRE-LOG as pending — record exists in reports before anything is sent
+        $logEntry = $this->createPendingLog($logPhone, $message, $type, $identifier);
+
         $token = $this->getAccessToken();
 
         if (!$token) {
-            // Log failed attempt
-            $this->logSms($phoneNumber, $message, $type, 'failed', 'Failed to get access token', $uniqueIdentifier);
-
-            return [
-                'success' => false,
-                'message' => 'Failed to get access token',
-                'data' => null
-            ];
+            $this->updateLog($logEntry, 'failed', 'pending', 'Failed to get access token');
+            return ['success' => false, 'message' => 'Failed to get access token', 'data' => null];
         }
 
-        // Clean and format phone number
-        $formattedPhone = $this->formatPhoneNumber($phoneNumber);
-
         if (!$formattedPhone) {
-            // Log failed attempt
-            $this->logSms($phoneNumber, $message, $type, 'failed', 'Invalid phone number format', $uniqueIdentifier);
-
-            return [
-                'success' => false,
-                'message' => 'Invalid phone number format',
-                'data' => null
-            ];
+            $this->updateLog($logEntry, 'failed', 'failed', 'Invalid phone number format');
+            return ['success' => false, 'message' => 'Invalid phone number format', 'data' => null];
         }
 
         try {
-            $identifier = $uniqueIdentifier ?? uniqid('sms_');
-
             $response = Http::withHeaders([
                 'Authorization' => 'Token ' . $token,
-                'Content-Type' => 'application/json',
+                'Content-Type'  => 'application/json',
             ])->post($this->baseUrl . '/send/simple/sms', [
-                'message' => $message,
-                'phone_number' => $formattedPhone,
-                'sender_name' => $this->senderName,
+                'message'           => $message,
+                'phone_number'      => $formattedPhone,
+                'sender_name'       => $this->senderName,
                 'unique_identifier' => $identifier,
             ]);
 
             if ($response->successful()) {
                 Log::info('Roberms: SMS sent successfully', [
-                    'phone' => $formattedPhone,
-                    'identifier' => $identifier
+                    'phone'      => $formattedPhone,
+                    'identifier' => $identifier,
                 ]);
-
-                // Log successful send
-                $this->logSms($formattedPhone, $message, $type, 'sent', null, $identifier, $response->json());
-
-                return [
-                    'success' => true,
-                    'message' => 'SMS sent successfully',
-                    'data' => $response->json()
-                ];
+                $this->updateLog($logEntry, 'sent', 'submitted', null, $response->json());
+                return ['success' => true, 'message' => 'SMS sent successfully', 'data' => $response->json()];
             }
 
             Log::error('Roberms: Failed to send SMS', [
-                'phone' => $formattedPhone,
+                'phone'  => $formattedPhone,
                 'status' => $response->status(),
-                'body' => $response->body()
+                'body'   => $response->body(),
             ]);
+            $this->updateLog($logEntry, 'failed', 'failed', $response->body(), $response->json());
+            return ['success' => false, 'message' => 'Failed to send SMS: ' . $response->body(), 'data' => $response->json()];
 
-            // Log failed send
-            $this->logSms($formattedPhone, $message, $type, 'failed', $response->body(), $identifier, $response->json());
-
-            return [
-                'success' => false,
-                'message' => 'Failed to send SMS: ' . $response->body(),
-                'data' => $response->json()
-            ];
         } catch (Exception $e) {
             Log::error('Roberms: Exception sending SMS', [
-                'phone' => $formattedPhone,
-                'message' => $e->getMessage()
+                'phone'   => $formattedPhone,
+                'message' => $e->getMessage(),
             ]);
+            $this->updateLog($logEntry, 'failed', 'failed', 'Exception: ' . $e->getMessage());
+            return ['success' => false, 'message' => 'Exception: ' . $e->getMessage(), 'data' => null];
+        }
+    }
 
-            // Log exception
-            $this->logSms($formattedPhone, $message, $type, 'failed', 'Exception: ' . $e->getMessage(), $uniqueIdentifier);
+    /**
+     * Create a pending log entry before the API call.
+     */
+    protected function createPendingLog($phone, $message, $type, $identifier)
+    {
+        try {
+            return \App\Models\SmsLog::create([
+                'user_id'           => auth()->id(),
+                'phone_number'      => $phone,
+                'message'           => $message,
+                'type'              => $type,
+                'status'            => 'pending',
+                'delivery_status'   => 'pending',
+                'unique_identifier' => $identifier,
+                'sent_at'           => null,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Failed to pre-log SMS', ['error' => $e->getMessage(), 'phone' => $phone]);
+            return null;
+        }
+    }
 
-            return [
-                'success' => false,
-                'message' => 'Exception: ' . $e->getMessage(),
-                'data' => null
-            ];
+    /**
+     * Update a log entry after the API call resolves.
+     */
+    protected function updateLog($logEntry, $status, $deliveryStatus, $errorMessage = null, $responseData = null)
+    {
+        if (!$logEntry) return;
+        try {
+            $logEntry->update([
+                'status'          => $status,
+                'delivery_status' => $deliveryStatus,
+                'error_message'   => $errorMessage,
+                'response_data'   => $responseData ? json_encode($responseData) : $logEntry->response_data,
+                'sent_at'         => $status === 'sent' ? now() : null,
+            ]);
+        } catch (Exception $e) {
+            Log::error('Failed to update SMS log', ['error' => $e->getMessage()]);
         }
     }
 
@@ -326,48 +337,4 @@ class RobermsSmsService
         }
     }
 
-    /**
-     * Log SMS to database
-     *
-     * @param string $phoneNumber
-     * @param string $message
-     * @param string $type
-     * @param string $status
-     * @param string|null $errorMessage
-     * @param string|null $uniqueIdentifier
-     * @param array|null $responseData
-     * @return void
-     */
-    protected function logSms($phoneNumber, $message, $type, $status, $errorMessage = null, $uniqueIdentifier = null, $responseData = null)
-    {
-        try {
-            // Determine initial delivery status based on send status
-            $deliveryStatus = 'pending';
-            if ($status === 'sent') {
-                // Successfully submitted to Roberms, waiting for delivery confirmation
-                $deliveryStatus = 'submitted';
-            } elseif ($status === 'failed') {
-                // Failed to submit to Roberms
-                $deliveryStatus = 'failed';
-            }
-
-            \App\Models\SmsLog::create([
-                'user_id' => auth()->id(),
-                'phone_number' => $phoneNumber,
-                'message' => $message,
-                'type' => $type,
-                'status' => $status,
-                'delivery_status' => $deliveryStatus,
-                'unique_identifier' => $uniqueIdentifier,
-                'response_data' => $responseData ? json_encode($responseData) : null,
-                'error_message' => $errorMessage,
-                'sent_at' => $status === 'sent' ? now() : null,
-            ]);
-        } catch (Exception $e) {
-            Log::error('Failed to log SMS to database', [
-                'error' => $e->getMessage(),
-                'phone' => $phoneNumber
-            ]);
-        }
-    }
 }

@@ -82,6 +82,18 @@ class LaundryController extends Controller
                         . '</form> ';
                 }
 
+                if ($laundry->payment_status !== 'Paid') {
+                    $amount = ($laundry->total ?? 0) - ($laundry->discount ?? 0);
+                    $actions .= '<button type="button" class="btn btn-success btn-sm rounded-pill waves-effect waves-light mpesa-btn" '
+                        . 'data-service-type="laundry" '
+                        . 'data-service-id="' . $laundry->id . '" '
+                        . 'data-phone="' . e($laundry->phone) . '" '
+                        . 'data-amount="' . $amount . '" '
+                        . 'data-name="' . e($laundry->name) . '" '
+                        . 'title="Send M-Pesa Prompt">'
+                        . '<i class="mdi mdi-cellphone"></i></button> ';
+                }
+
                 if (Gate::allows('laundry.details')) {
                     $actions .= '<a href="' . route('details.laundry', $laundry->id) . '" class="btn btn-info btn-sm rounded-pill waves-effect waves-light" title="Details"><i class="fa fa-eye"></i></a>';
                 }

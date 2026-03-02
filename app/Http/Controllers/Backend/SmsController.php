@@ -112,6 +112,11 @@ class SmsController extends Controller
      */
     public function sendBulk(Request $request)
     {
+        // Remove PHP execution time limit so all messages go out
+        set_time_limit(0);
+        // Keep running even if the browser disconnects mid-send
+        ignore_user_abort(true);
+
         $request->validate([
             'filter' => 'required|string',
             'message' => 'required|string|max:480',
@@ -120,11 +125,10 @@ class SmsController extends Controller
         $recipients = $this->getRecipientsByFilter($request->filter);
 
         if (empty($recipients)) {
-            $notification = [
-                'message' => 'No recipients found for the selected filter.',
-                'alert-type' => 'warning'
-            ];
-            return redirect()->back()->with($notification);
+            return redirect()->back()->with([
+                'message'    => 'No recipients found for the selected filter.',
+                'alert-type' => 'warning',
+            ]);
         }
 
         // Get phone numbers only
@@ -133,12 +137,10 @@ class SmsController extends Controller
         // Send bulk SMS
         $result = $this->smsService->sendBulkSms($phoneNumbers, $request->message);
 
-        $notification = [
-            'message' => "Bulk SMS sent! Total: {$result['total']}, Sent: {$result['sent']}, Failed: {$result['failed']}",
-            'alert-type' => $result['sent'] > 0 ? 'success' : 'error'
-        ];
-
-        return redirect()->back()->with($notification);
+        return redirect()->back()->with([
+            'message'    => "Bulk SMS complete. Total: {$result['total']}, Sent: {$result['sent']}, Failed: {$result['failed']}",
+            'alert-type' => $result['sent'] > 0 ? 'success' : 'error',
+        ]);
     }
 
     /**
@@ -211,65 +213,53 @@ class SmsController extends Controller
 
         switch ($filter) {
             case 'all_carpets':
-                $recipients = Carpet::select('phone', 'name')
-                    ->whereNotNull('phone')
-                    ->where('phone', '!=', '')
-                    ->distinct('phone')
-                    ->get()
-                    ->toArray();
+                $recipients = Carpet::select('phone', DB::raw('MAX(name) as name'))
+                    ->whereNotNull('phone')->where('phone', '!=', '')
+                    ->groupBy('phone')
+                    ->get()->toArray();
                 break;
 
             case 'all_laundry':
-                $recipients = Laundry::select('phone', 'name')
-                    ->whereNotNull('phone')
-                    ->where('phone', '!=', '')
-                    ->distinct('phone')
-                    ->get()
-                    ->toArray();
+                $recipients = Laundry::select('phone', DB::raw('MAX(name) as name'))
+                    ->whereNotNull('phone')->where('phone', '!=', '')
+                    ->groupBy('phone')
+                    ->get()->toArray();
                 break;
 
             case 'unpaid_carpets':
-                $recipients = Carpet::select('phone', 'name')
+                $recipients = Carpet::select('phone', DB::raw('MAX(name) as name'))
                     ->where('payment_status', 'Not Paid')
                     ->where('delivered', 'Not Delivered')
-                    ->whereNotNull('phone')
-                    ->where('phone', '!=', '')
-                    ->distinct('phone')
-                    ->get()
-                    ->toArray();
+                    ->whereNotNull('phone')->where('phone', '!=', '')
+                    ->groupBy('phone')
+                    ->get()->toArray();
                 break;
 
             case 'unpaid_laundry':
-                $recipients = Laundry::select('phone', 'name')
+                $recipients = Laundry::select('phone', DB::raw('MAX(name) as name'))
                     ->where('payment_status', 'Not Paid')
                     ->where('delivered', 'Not Delivered')
-                    ->whereNotNull('phone')
-                    ->where('phone', '!=', '')
-                    ->distinct('phone')
-                    ->get()
-                    ->toArray();
+                    ->whereNotNull('phone')->where('phone', '!=', '')
+                    ->groupBy('phone')
+                    ->get()->toArray();
                 break;
 
             case 'ready_carpets':
-                $recipients = Carpet::select('phone', 'name')
+                $recipients = Carpet::select('phone', DB::raw('MAX(name) as name'))
                     ->where('delivered', 'Delivered')
                     ->where('payment_status', 'Not Paid')
-                    ->whereNotNull('phone')
-                    ->where('phone', '!=', '')
-                    ->distinct('phone')
-                    ->get()
-                    ->toArray();
+                    ->whereNotNull('phone')->where('phone', '!=', '')
+                    ->groupBy('phone')
+                    ->get()->toArray();
                 break;
 
             case 'ready_laundry':
-                $recipients = Laundry::select('phone', 'name')
+                $recipients = Laundry::select('phone', DB::raw('MAX(name) as name'))
                     ->where('delivered', 'Delivered')
                     ->where('payment_status', 'Not Paid')
-                    ->whereNotNull('phone')
-                    ->where('phone', '!=', '')
-                    ->distinct('phone')
-                    ->get()
-                    ->toArray();
+                    ->whereNotNull('phone')->where('phone', '!=', '')
+                    ->groupBy('phone')
+                    ->get()->toArray();
                 break;
 
             case 'inactive_customers':

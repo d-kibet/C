@@ -18,41 +18,38 @@
                     </a>
                 </li>
 
+                {{-- Orders (new system) --}}
                 @if(Auth::user()->can('carpet.menu'))
                 <li>
                     <a href="javascript: void(0);" data-bs-toggle="collapse">
-                        <i class="mdi mdi-layers-outline"></i>
-                        <span>Carpets</span>
+                        <i class="mdi mdi-clipboard-list-outline"></i>
+                        <span>Orders</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-
                         @if(Auth::user()->can('carpet.all'))
-                        <li><a href="{{ route('all.carpet') }}">All Carpet Records</a></li>
+                        <li><a href="{{ route('orders.index') }}">All Orders</a></li>
                         @endif
-
                         @if(Auth::user()->can('carpet.add'))
-                        <li><a href="{{ route('add.carpet') }}">Add Carpet Records</a></li>
+                        <li><a href="{{ route('orders.create') }}">New Order</a></li>
                         @endif
                     </ul>
                 </li>
                 @endif
 
-                @if(Auth::user()->can('laundry.menu'))
+                {{-- Archive (read-only, old records) --}}
+                @if(Auth::user()->can('admin.all'))
                 <li>
                     <a href="javascript: void(0);" data-bs-toggle="collapse">
-                        <i class="fa-solid fa-shirt"></i>
-                        <span>Laundry</span>
+                        <i class="mdi mdi-archive-outline"></i>
+                        <span>Archive</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-
+                        @if(Auth::user()->can('carpet.all'))
+                        <li><a href="{{ route('all.carpet') }}">Carpets (Archive)</a></li>
+                        @endif
                         @if(Auth::user()->can('laundry.all'))
-                        <li><a href="{{ route('all.laundry') }}">All Laundry Records</a></li>
+                        <li><a href="{{ route('all.laundry') }}">Laundry (Archive)</a></li>
                         @endif
-
-                        @if(Auth::user()->can('laundry.add'))
-                        <li><a href="{{ route('add.laundry') }}">Add Laundry Record</a></li>
-                        @endif
-
                     </ul>
                 </li>
                 @endif
@@ -194,6 +191,12 @@
                         @if(Auth::user()->can('admin.all'))
                         <li><a href="{{ route('trashed.index') }}">
                             <i class="ri-delete-bin-line me-2"></i>Deleted Records
+                        </a></li>
+                        @endif
+
+                        @if(Auth::user()->can('admin.all'))
+                        <li><a href="{{ route('mpesa.transactions') }}">
+                            <i class="ri-money-dollar-circle-line me-2"></i>M-Pesa Transactions
                         </a></li>
                         @endif
 

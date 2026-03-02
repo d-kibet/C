@@ -82,6 +82,18 @@ class CarpetController extends Controller
                         . '</form> ';
                 }
 
+                if ($carpet->payment_status !== 'Paid') {
+                    $amount = ($carpet->price ?? 0) - ($carpet->discount ?? 0);
+                    $actions .= '<button type="button" class="btn btn-success btn-sm rounded-pill waves-effect waves-light mpesa-btn" '
+                        . 'data-service-type="carpet" '
+                        . 'data-service-id="' . $carpet->id . '" '
+                        . 'data-phone="' . e($carpet->phone) . '" '
+                        . 'data-amount="' . $amount . '" '
+                        . 'data-name="' . e($carpet->uniqueid) . '" '
+                        . 'title="Send M-Pesa Prompt">'
+                        . '<i class="mdi mdi-cellphone"></i></button> ';
+                }
+
                 if (Gate::allows('carpet.details')) {
                     $actions .= '<a href="' . route('details.carpet', $carpet->id) . '" class="btn btn-info btn-sm rounded-pill waves-effect waves-light">Info</a>';
                 }
@@ -384,7 +396,24 @@ class CarpetController extends Controller
             return response()->json(['found' => false]);
         }
 
-        // Check in Carpets first (most recent)
+        // Check Orders table first (new system)
+        $order = \App\Models\Order::where('phone', $phone)
+            ->orderBy('date_received', 'desc')
+            ->first();
+
+        if ($order) {
+            return response()->json([
+                'found'        => true,
+                'name'         => $order->name,
+                'location'     => $order->location,
+                'phone'        => $order->phone,
+                'uniqueid'     => '',
+                'size'         => '',
+                'service_type' => $order->type,
+            ]);
+        }
+
+        // Fall back to legacy Carpets table
         $customer = Carpet::where('phone', $phone)
             ->orderBy('date_received', 'desc')
             ->first();
@@ -414,18 +443,18 @@ class CarpetController extends Controller
                 ->first();
 
             return response()->json([
-                'found' => true,
-                'name' => $customer->name,
-                'location' => $customer->location,
-                'phone' => $customer->phone,
-                'uniqueid' => $uid ?? '',
-                'size' => $customer->size ?? '',
-                'service_type' => $serviceType,
-                'last_carpet_price' => $lastCarpet->price ?? null,
+                'found'                => true,
+                'name'                 => $customer->name,
+                'location'             => $customer->location,
+                'phone'                => $customer->phone,
+                'uniqueid'             => $uid ?? '',
+                'size'                 => $customer->size ?? '',
+                'service_type'         => $serviceType,
+                'last_carpet_price'    => $lastCarpet->price ?? null,
                 'last_carpet_discount' => $lastCarpet->discount ?? 0,
-                'last_laundry_price' => $lastLaundry->price ?? null,
-                'last_laundry_discount' => $lastLaundry->discount ?? 0,
-                'last_laundry_total' => $lastLaundry->total ?? null,
+                'last_laundry_price'   => $lastLaundry->price ?? null,
+                'last_laundry_discount'=> $lastLaundry->discount ?? 0,
+                'last_laundry_total'   => $lastLaundry->total ?? null,
             ]);
         }
 

@@ -3,84 +3,67 @@
 
 <div class="content">
     <div class="container-fluid">
-        <!-- start page title -->
         <div class="row">
             <div class="col-12">
                 <div class="page-title-box d-flex justify-content-between align-items-center">
-                    <h4 class="page-title mb-0">All Laundry Data</h4>
-                    <div class="page-title-right d-flex align-items-center">
-                        <!-- Add Laundry Button -->
-                        <a
-                            href="{{ route('add.laundry') }}"
-                            class="btn btn-primary rounded-pill waves-effect waves-light me-2"
-                        >
-                            Add Laundry
+                    <h4 class="page-title mb-0">All Orders</h4>
+                    <div class="page-title-right d-flex align-items-center gap-2">
+                        @can('carpet.add')
+                        <a href="{{ route('orders.create') }}" class="btn btn-primary rounded-pill waves-effect waves-light">
+                            <i class="mdi mdi-plus me-1"></i> New Order
                         </a>
-
-                        <!-- CSV Download Button (shown only if user has permission) -->
-                        @can('admin.all')
-                            <a
-                                href="{{ route('reports.laundry.downloadAll') }}"
-                                class="btn btn-secondary rounded-pill waves-effect waves-light"
-                            >
-                                <i class="mdi mdi-download"></i> Download Laundry CSV
-                            </a>
                         @endcan
                     </div>
                 </div>
-
             </div>
         </div>
-        <!-- end page title -->
 
         <div class="row">
             <div class="col-12">
                 <div class="card">
                     <div class="card-body">
-                        <div class="table-responsive">
-                            <table id="laundryTable" class="table table-striped" style="width:100%">
+                        <div class="table-responsive" style="overflow: visible;">
+                            <table id="ordersTable" class="table table-striped" style="width:100%">
                                 <thead>
                                     <tr>
-                                        <th>No.</th>
-                                        <th>Name</th>
+                                        <th>Unique ID(s)</th>
                                         <th>Phone</th>
                                         <th>Date Received</th>
-                                        <th>Date Delivered</th>
+                                        <th>Items</th>
                                         <th>Total</th>
-                                        <th>Payment Status</th>
-                                        <th>Delivered</th>
-                                        <th>Action</th>
+                                        <th>Payment</th>
+                                        <th>Payment Date</th>
+                                        <th>Delivery</th>
+                                        <th>Actions</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    <!-- Data loaded via AJAX -->
-                                </tbody>
+                                <tbody></tbody>
                             </table>
                         </div>
-                    </div> <!-- end card-body -->
-                </div> <!-- end card -->
-            </div> <!-- end col -->
-        </div> <!-- end row -->
-    </div> <!-- end container-fluid -->
-</div> <!-- end content -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- M-Pesa Quick Pay Modal -->
 <div class="modal fade" id="mpesaModal" tabindex="-1" aria-labelledby="mpesaModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title" id="mpesaModalLabel"><i class="mdi mdi-cellphone me-1"></i> M-Pesa Payment</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h5 class="modal-title"><i class="mdi mdi-cellphone me-1"></i> M-Pesa Payment</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
                 <div id="mpesa-modal-info">
-                    <p class="mb-3"><strong>Customer:</strong> <span id="mpesa-modal-name"></span></p>
+                    <p class="mb-3"><strong>Order:</strong> <span id="mpesa-modal-name"></span></p>
                     <div class="mb-3">
-                        <label class="form-label" for="mpesa-input-phone"><strong>Phone Number</strong></label>
+                        <label class="form-label"><strong>Phone Number</strong></label>
                         <input type="text" class="form-control" id="mpesa-input-phone" placeholder="e.g. 0712345678">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label" for="mpesa-input-amount"><strong>Amount (KES)</strong></label>
+                        <label class="form-label"><strong>Amount (KES)</strong></label>
                         <input type="number" class="form-control" id="mpesa-input-amount" min="1" step="1">
                     </div>
                 </div>
@@ -101,7 +84,7 @@
                     </div>
                 </div>
             </div>
-            <div class="modal-footer" id="mpesa-modal-footer">
+            <div class="modal-footer">
                 <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-success" id="mpesa-modal-send">
                     <i class="mdi mdi-send me-1"></i> Send Prompt
@@ -116,31 +99,44 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
-    $('#laundryTable').DataTable({
+    var table = $('#ordersTable').DataTable({
         processing: true,
         serverSide: true,
-        ajax: {
-            url: "{{ route('laundries.data') }}",
-            type: 'GET'
-        },
+        ajax: { url: "{{ route('orders.data') }}", type: 'GET' },
         columns: [
-            { data: 'row_number', name: 'row_number', orderable: false, searchable: false },
-            { data: 'name', name: 'name' },
-            { data: 'phone', name: 'phone' },
+            { data: 'unique_ids',    name: 'unique_ids',    orderable: false, searchable: false },
+            { data: 'phone',         name: 'phone' },
             { data: 'date_received', name: 'date_received' },
-            { data: 'date_delivered', name: 'date_delivered' },
-            { data: 'total', name: 'total' },
-            { data: 'payment_status', name: 'payment_status' },
-            { data: 'delivered', name: 'delivered' },
-            { data: 'actions', name: 'actions', orderable: false, searchable: false }
+            { data: 'items_count',   name: 'items_count',   orderable: false, searchable: false },
+            { data: 'total',         name: 'total',         orderable: false, searchable: false },
+            { data: 'payment_status',name: 'payment_status',orderable: false },
+            { data: 'payment_date',  name: 'payment_date',  orderable: false, searchable: false },
+            { data: 'delivery',      name: 'delivery',      orderable: false, searchable: false },
+            { data: 'actions',       name: 'actions',       orderable: false, searchable: false }
         ],
-        order: [[3, 'desc']], // Sort by date_received descending
+        order: [[2, 'desc']],
         pageLength: 25,
         responsive: true,
+        drawCallback: function() {
+            // Re-init tooltips after every DataTable redraw
+            $('[data-bs-toggle="tooltip"]').each(function() {
+                new bootstrap.Tooltip(this, { trigger: 'hover' });
+            });
+        },
         language: {
             processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',
-            emptyTable: "No laundry records found",
-            zeroRecords: "No matching records found"
+            emptyTable: "No orders found",
+            zeroRecords: "No matching orders found"
+        }
+    });
+
+    // Delete order
+    $(document).on('click', '.delete-order-btn', function(e) {
+        e.preventDefault();
+        var id    = $(this).data('id');
+        var label = $(this).data('label');
+        if (confirm('Delete order ' + label + '? This cannot be undone.')) {
+            $('#del-' + id).submit();
         }
     });
 
@@ -151,27 +147,23 @@ $(document).ready(function() {
     $(document).on('click', '.mpesa-btn', function() {
         currentMpesaData = {
             service_type: $(this).data('service-type'),
-            service_id: $(this).data('service-id'),
-            phone: $(this).data('phone'),
-            amount: $(this).data('amount'),
-            name: $(this).data('name')
+            service_id:   $(this).data('service-id'),
+            phone:        $(this).data('phone'),
+            amount:       $(this).data('amount'),
+            name:         $(this).data('name')
         };
-
-        // Reset modal state
         $('#mpesa-modal-info').show();
         $('#mpesa-modal-pending, #mpesa-modal-success, #mpesa-modal-error').hide();
         $('#mpesa-modal-send').show().prop('disabled', false).html('<i class="mdi mdi-send me-1"></i> Send Prompt');
         $('#mpesa-modal-name').text(currentMpesaData.name);
         $('#mpesa-input-phone').val(currentMpesaData.phone);
         $('#mpesa-input-amount').val(Math.ceil(currentMpesaData.amount));
-
         $('#mpesaModal').modal('show');
     });
 
     $('#mpesa-modal-send').on('click', function() {
-        var phone = $('#mpesa-input-phone').val().trim();
+        var phone  = $('#mpesa-input-phone').val().trim();
         var amount = $('#mpesa-input-amount').val();
-
         if (!phone) { $('#mpesa-input-phone').focus(); return; }
         if (!amount || amount < 1) { $('#mpesa-input-amount').focus(); return; }
 
@@ -187,7 +179,7 @@ $(document).ready(function() {
             data: {
                 _token: '{{ csrf_token() }}',
                 service_type: currentMpesaData.service_type,
-                service_id: currentMpesaData.service_id,
+                service_id:   currentMpesaData.service_id,
                 phone: phone,
                 amount: amount
             },
@@ -202,7 +194,7 @@ $(document).ready(function() {
                 }
             },
             error: function() {
-                showMpesaError('Failed to send M-Pesa prompt. Please try again.');
+                showMpesaError('Failed to send prompt. Please try again.');
                 btn.prop('disabled', false).html('<i class="mdi mdi-send me-1"></i> Retry');
             }
         });
@@ -220,11 +212,11 @@ $(document).ready(function() {
                     $('#mpesa-modal-receipt').text(response.mpesa_receipt_number);
                     setTimeout(function() {
                         $('#mpesaModal').modal('hide');
-                        $('#laundryTable').DataTable().ajax.reload(null, false);
+                        table.ajax.reload(null, false);
                     }, 2500);
                 } else if (response.status === 'failed' || response.status === 'cancelled') {
                     clearInterval(mpesaPollingTimer);
-                    showMpesaError(response.result_desc || 'Payment was ' + response.status + '.');
+                    showMpesaError(response.result_desc || 'Payment ' + response.status + '.');
                     $('#mpesa-modal-send').show().prop('disabled', false).html('<i class="mdi mdi-send me-1"></i> Retry');
                 }
             });
@@ -242,7 +234,6 @@ $(document).ready(function() {
         $('#mpesa-modal-error-text').text(message);
     }
 
-    // Clear polling when modal is closed
     $('#mpesaModal').on('hidden.bs.modal', function() {
         if (mpesaPollingTimer) clearInterval(mpesaPollingTimer);
     });

@@ -97,7 +97,22 @@ Route::controller(LaundryController::class)->middleware(['auth'])->group(functio
 
     });
 
-     /// Mpesa All Route
+/// Orders Route
+use App\Http\Controllers\Backend\OrderController;
+Route::controller(OrderController::class)->middleware(['auth'])->group(function () {
+    Route::get('/orders', 'index')->name('orders.index')->middleware('permission:carpet.all');
+    Route::get('/orders/data', 'getOrdersData')->name('orders.data')->middleware('permission:carpet.all');
+    Route::get('/orders/create', 'create')->name('orders.create')->middleware('permission:carpet.add');
+    Route::get('/orders/previous-items', 'getPreviousItems')->name('orders.previousItems');
+    Route::post('/orders', 'store')->name('orders.store');
+    Route::get('/orders/{id}', 'show')->name('orders.show');
+    Route::get('/orders/{id}/edit', 'edit')->name('orders.edit');
+    Route::put('/orders/{id}', 'update')->name('orders.update');
+    Route::delete('/orders/{id}', 'destroy')->name('orders.destroy');
+    Route::post('/order-items/{itemId}/deliver', 'deliverItem')->name('order-items.deliver');
+});
+
+/// Mpesa All Route
 Route::controller(MpesaController::class)->middleware(['auth'])->group(function(){
 
     Route::get('/all/mpesa','AllMpesa')->name('all.mpesa')->middleware('permission:mpesa.all');;
@@ -278,6 +293,18 @@ Route::controller(App\Http\Controllers\Backend\SmsController::class)->middleware
     Route::get('/sms/history', 'history')->name('sms.history');
     Route::get('/sms/statistics', 'statistics')->name('sms.statistics');
 });
+
+// M-Pesa Payment Routes
+Route::controller(App\Http\Controllers\Backend\MpesaPaymentController::class)->middleware(['auth'])->group(function () {
+    Route::post('/mpesa/pay', 'initiatePayment')->name('mpesa.pay');
+    Route::get('/mpesa/status/{id}', 'checkStatus')->name('mpesa.status');
+    Route::get('/mpesa/transactions', 'transactionHistory')->name('mpesa.transactions')->middleware('can:admin.all');
+});
+
+// M-Pesa Callback (public, no auth - called by Safaricom)
+Route::post('/api/mpesa/callback', [App\Http\Controllers\Backend\MpesaPaymentController::class, 'callback'])
+    ->name('mpesa.callback')
+    ->withoutMiddleware([\App\Http\Middleware\VerifyCsrfToken::class]);
 
 // SMS Webhook Routes (No authentication required - called by Roberms)
 Route::controller(App\Http\Controllers\Backend\SmsWebhookController::class)->group(function () {

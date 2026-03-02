@@ -13,5 +13,6 @@ class VerifyCsrfToken extends Middleware
      */
     protected $except = [
         '/sms/webhook/delivery', // Roberms SMS delivery webhook
+        '/api/mpesa/callback',   // Safaricom M-Pesa STK Push callback
     ];
 }

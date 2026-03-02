@@ -26,6 +26,7 @@ class Laundry extends Model
         'total',
         'delivered',
         'payment_status',
+        'transaction_code',
         'follow_up_due_at',
         'follow_up_stage',
         'last_notified_at',

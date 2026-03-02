@@ -138,6 +138,40 @@
                                             <p class="text-danger">{{ $laundry->payment_status }}</p>
                                         </div>
                                     </div>
+                                    <!-- Transaction Code -->
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Transaction Code</label>
+                                            <p class="text-danger">{{ $laundry->transaction_code ?? '-' }}</p>
+                                        </div>
+                                    </div>
+
+                                    @if($laundry->payment_status !== 'Paid')
+                                    <!-- M-Pesa Payment -->
+                                    <div class="col-12 mt-3">
+                                        <div class="alert alert-light border d-flex align-items-center justify-content-between" id="mpesa-section">
+                                            <div>
+                                                <strong>Amount Due: KES {{ number_format(($laundry->total ?? 0) - ($laundry->discount ?? 0), 2) }}</strong>
+                                            </div>
+                                            <button type="button" class="btn btn-success rounded-pill" id="mpesaPayBtn">
+                                                <i class="mdi mdi-cellphone me-1"></i> Send M-Pesa Prompt
+                                            </button>
+                                        </div>
+                                        <div id="mpesa-status" style="display:none;">
+                                            <div class="alert alert-info" id="mpesa-pending" style="display:none;">
+                                                <i class="mdi mdi-loading mdi-spin me-1"></i> <span id="mpesa-status-text">Waiting for customer to complete payment...</span>
+                                            </div>
+                                            <div class="alert alert-success" id="mpesa-success" style="display:none;">
+                                                <i class="mdi mdi-check-circle me-1"></i> Payment received! Receipt: <strong id="mpesa-receipt"></strong>
+                                            </div>
+                                            <div class="alert alert-danger" id="mpesa-error" style="display:none;">
+                                                <i class="mdi mdi-alert-circle me-1"></i> <span id="mpesa-error-text"></span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger ms-2" id="mpesaRetryBtn">Retry</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    @endif
+
                                 </div> <!-- End Row -->
                             </form>
                         </div>
@@ -149,16 +183,86 @@
     </div> <!-- End Container -->
 </div> <!-- End Content -->
 
-<script type="text/javascript">
-    $(document).ready(function(){
-        $('#image').change(function(e){
-            var reader = new FileReader();
-            reader.onload = function(e){
-                $('#showImage').attr('src', e.target.result);
-            }
-            reader.readAsDataURL(e.target.files[0]);
-        });
-    });
-</script>
-
 @endsection
+
+@push('scripts')
+@if($laundry->payment_status !== 'Paid')
+<script>
+$(document).ready(function() {
+    var pollingTimer = null;
+
+    function sendMpesaPrompt() {
+        $('#mpesaPayBtn').prop('disabled', true).html('<i class="mdi mdi-loading mdi-spin me-1"></i> Sending...');
+        $('#mpesa-status').show();
+        $('#mpesa-pending').show();
+        $('#mpesa-success, #mpesa-error').hide();
+        $('#mpesa-status-text').text('Sending payment prompt to {{ $laundry->phone }}...');
+
+        $.ajax({
+            url: '{{ route("mpesa.pay") }}',
+            method: 'POST',
+            data: {
+                _token: '{{ csrf_token() }}',
+                service_type: 'laundry',
+                service_id: {{ $laundry->id }},
+                phone: '{{ $laundry->phone }}',
+                amount: {{ ($laundry->total ?? 0) - ($laundry->discount ?? 0) }}
+            },
+            success: function(response) {
+                if (response.success) {
+                    $('#mpesa-status-text').text('Prompt sent! Waiting for customer to enter PIN...');
+                    pollStatus(response.transaction_id);
+                } else {
+                    showError(response.message);
+                }
+            },
+            error: function(xhr) {
+                showError('Failed to send M-Pesa prompt. Please try again.');
+            }
+        });
+    }
+
+    function pollStatus(transactionId) {
+        var attempts = 0;
+        var maxAttempts = 24;
+
+        pollingTimer = setInterval(function() {
+            attempts++;
+
+            $.get('/mpesa/status/' + transactionId, function(response) {
+                if (response.status === 'completed') {
+                    clearInterval(pollingTimer);
+                    $('#mpesa-pending').hide();
+                    $('#mpesa-success').show();
+                    $('#mpesa-receipt').text(response.mpesa_receipt_number);
+                    $('#mpesaPayBtn').hide();
+                    setTimeout(function() { location.reload(); }, 3000);
+                } else if (response.status === 'failed' || response.status === 'cancelled') {
+                    clearInterval(pollingTimer);
+                    showError(response.result_desc || 'Payment was ' + response.status + '.');
+                }
+            });
+
+            if (attempts >= maxAttempts) {
+                clearInterval(pollingTimer);
+                showError('Payment timed out. The customer may not have responded.');
+            }
+        }, 5000);
+    }
+
+    function showError(message) {
+        $('#mpesa-pending').hide();
+        $('#mpesa-error').show();
+        $('#mpesa-error-text').text(message);
+        $('#mpesaPayBtn').prop('disabled', false).html('<i class="mdi mdi-cellphone me-1"></i> Send M-Pesa Prompt');
+    }
+
+    $('#mpesaPayBtn').on('click', sendMpesaPrompt);
+    $('#mpesaRetryBtn').on('click', function() {
+        $('#mpesa-error').hide();
+        sendMpesaPrompt();
+    });
+});
+</script>
+@endif
+@endpush
