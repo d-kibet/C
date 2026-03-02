@@ -10,12 +10,14 @@
                     <h4 class="page-title mb-0">All Laundry Data</h4>
                     <div class="page-title-right d-flex align-items-center">
                         <!-- Add Laundry Button -->
+                         @if(Auth::user()->can('admin.all'))
                         <a
                             href="{{ route('add.laundry') }}"
                             class="btn btn-primary rounded-pill waves-effect waves-light me-2"
                         >
                             Add Laundry
                         </a>
+                        @endif
 
                         <!-- CSV Download Button (shown only if user has permission) -->
                         @can('admin.all')

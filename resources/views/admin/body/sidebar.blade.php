@@ -37,7 +37,7 @@
                 @endif
 
                 {{-- Archive (read-only, old records) --}}
-                @if(Auth::user()->can('admin.all'))
+                
                 <li>
                     <a href="javascript: void(0);" data-bs-toggle="collapse">
                         <i class="mdi mdi-archive-outline"></i>
@@ -52,7 +52,7 @@
                         @endif
                     </ul>
                 </li>
-                @endif
+
 
                 @if(Auth::user()->can('mpesa.menu'))
                 <li>

@@ -10,12 +10,14 @@
                     <h4 class="page-title mb-0">All Carpet Data</h4>
                     <div class="page-title-right d-flex align-items-center">
                         <!-- Add Carpet Button -->
+                        @if(Auth::user()->can('admin.all'))
                         <a
                             href="{{ route('add.carpet') }}"
                             class="btn btn-primary rounded-pill waves-effect waves-light me-2"
                         >
                             Add Carpet
                         </a>
+                        @endif
 
                         <!-- CSV Download Button (shown only if user has permission) -->
                         @can('admin.all')
