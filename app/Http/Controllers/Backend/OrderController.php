@@ -37,9 +37,20 @@ class OrderController extends Controller
             $columns     = ['phone', 'date_received', 'payment_status'];
             $orderColumn = $columns[$orderColumnIndex] ?? 'date_received';
 
+            $canCarpet  = Gate::allows('carpet.all');
+            $canLaundry = Gate::allows('laundry.all');
+
             $query = Order::withCount('items')->with('items');
 
-            $totalRecords = Order::count();
+            if ($canCarpet && !$canLaundry) {
+                $query->where('type', 'carpet');
+                $totalRecords = Order::where('type', 'carpet')->count();
+            } elseif ($canLaundry && !$canCarpet) {
+                $query->where('type', 'laundry');
+                $totalRecords = Order::where('type', 'laundry')->count();
+            } else {
+                $totalRecords = Order::count();
+            }
 
             if (!empty($search)) {
                 $search = trim($search);
@@ -91,15 +102,20 @@ class OrderController extends Controller
                     ? "<span class=\"badge bg-secondary\">{$deliveredCount}/{$totalItems}</span>"
                     : '<span class="badge bg-light text-dark">—</span>';
 
+                $isCarpetOrder  = $order->type === 'carpet';
+                $canViewOrder   = $isCarpetOrder ? Gate::allows('carpet.details') : Gate::allows('laundry.all');
+                $canEditOrder   = $isCarpetOrder ? Gate::allows('carpet.edit')    : Gate::allows('laundry.all');
+                $canDeleteOrder = $isCarpetOrder ? Gate::allows('carpet.delete')  : Gate::allows('laundry.all');
+
                 $dropId  = 'act-' . $order->id;
                 $items   = '';
 
-                if (Gate::allows('carpet.details')) {
+                if ($canViewOrder) {
                     $items .= '<li><a class="dropdown-item" href="' . route('orders.show', $order->id) . '">'
                         . '<i class="fa fa-eye me-2 text-info"></i> View Details</a></li>';
                 }
 
-                if (Gate::allows('carpet.edit') && !$isLocked) {
+                if ($canEditOrder && !$isLocked) {
                     $items .= '<li><a class="dropdown-item" href="' . route('orders.edit', $order->id) . '">'
                         . '<i class="fa fa-pencil me-2 text-secondary"></i> Edit Order</a></li>';
                 }
@@ -114,7 +130,7 @@ class OrderController extends Controller
                         . '<i class="mdi mdi-cellphone me-2 text-success"></i> Send M-Pesa</a></li>';
                 }
 
-                if (Gate::allows('carpet.delete') && (!$isLocked || Gate::allows('admin.all'))) {
+                if ($canDeleteOrder && (!$isLocked || Gate::allows('admin.all'))) {
                     $items .= '<li><hr class="dropdown-divider"></li>'
                         . '<li><a class="dropdown-item text-danger delete-order-btn" href="#" '
                         . 'data-id="' . $order->id . '" '

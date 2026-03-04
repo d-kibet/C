@@ -363,12 +363,14 @@ class ReportController extends Controller
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->where('orders.type', 'carpet')->whereIn('order_items.unique_id', $allIds)
             ->groupBy('order_items.unique_id')
-            ->pluck(DB::raw('MIN(orders.date_received)'), 'order_items.unique_id')
+            ->select('order_items.unique_id', DB::raw('MIN(orders.date_received) as first_seen'))
+            ->pluck('first_seen', 'unique_id')
             ->toArray();
 
         $legacyFirst = Carpet::withTrashed()->whereIn('uniqueid', $allIds)
             ->groupBy('uniqueid')
-            ->pluck(DB::raw('MIN(date_received)'), 'uniqueid')
+            ->select('uniqueid', DB::raw('MIN(date_received) as first_seen'))
+            ->pluck('first_seen', 'uniqueid')
             ->toArray();
 
         $firstSeenMap = [];
@@ -429,12 +431,14 @@ class ReportController extends Controller
             ->join('orders', 'order_items.order_id', '=', 'orders.id')
             ->where('orders.type', 'laundry')->whereIn('order_items.unique_id', $allIds)
             ->groupBy('order_items.unique_id')
-            ->pluck(DB::raw('MIN(orders.date_received)'), 'order_items.unique_id')
+            ->select('order_items.unique_id', DB::raw('MIN(orders.date_received) as first_seen'))
+            ->pluck('first_seen', 'unique_id')
             ->toArray();
 
         $legacyFirst = Laundry::withTrashed()->whereIn('unique_id', $allIds)
             ->groupBy('unique_id')
-            ->pluck(DB::raw('MIN(date_received)'), 'unique_id')
+            ->select('unique_id', DB::raw('MIN(date_received) as first_seen'))
+            ->pluck('first_seen', 'unique_id')
             ->toArray();
 
         $firstSeenMap = [];

@@ -100,9 +100,9 @@ Route::controller(LaundryController::class)->middleware(['auth'])->group(functio
 /// Orders Route
 use App\Http\Controllers\Backend\OrderController;
 Route::controller(OrderController::class)->middleware(['auth'])->group(function () {
-    Route::get('/orders', 'index')->name('orders.index')->middleware('permission:carpet.all');
-    Route::get('/orders/data', 'getOrdersData')->name('orders.data')->middleware('permission:carpet.all');
-    Route::get('/orders/create', 'create')->name('orders.create')->middleware('permission:carpet.add');
+    Route::get('/orders', 'index')->name('orders.index')->middleware('permission:carpet.all|laundry.all');
+    Route::get('/orders/data', 'getOrdersData')->name('orders.data')->middleware('permission:carpet.all|laundry.all');
+    Route::get('/orders/create', 'create')->name('orders.create')->middleware('permission:carpet.add|laundry.add');
     Route::get('/orders/previous-items', 'getPreviousItems')->name('orders.previousItems');
     Route::post('/orders', 'store')->name('orders.store');
     Route::get('/orders/{id}', 'show')->name('orders.show');

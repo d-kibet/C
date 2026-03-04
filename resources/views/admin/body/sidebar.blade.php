@@ -19,17 +19,17 @@
                 </li>
 
                 {{-- Orders (new system) --}}
-                @if(Auth::user()->can('carpet.menu'))
+                @if(Auth::user()->can('carpet.menu') || Auth::user()->can('laundry.all'))
                 <li>
                     <a href="javascript: void(0);" data-bs-toggle="collapse">
                         <i class="mdi mdi-clipboard-list-outline"></i>
                         <span>Orders</span>
                     </a>
                     <ul class="sub-menu" aria-expanded="false">
-                        @if(Auth::user()->can('carpet.all'))
+                        @if(Auth::user()->can('carpet.all') || Auth::user()->can('laundry.all'))
                         <li><a href="{{ route('orders.index') }}">All Orders</a></li>
                         @endif
-                        @if(Auth::user()->can('carpet.add'))
+                        @if(Auth::user()->can('carpet.add') || Auth::user()->can('laundry.add'))
                         <li><a href="{{ route('orders.create') }}">New Order</a></li>
                         @endif
                     </ul>
