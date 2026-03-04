@@ -488,16 +488,16 @@ class CarpetController extends Controller
     $callback = function() use ($orders, $includePhone) {
         $file = fopen('php://output', 'w');
         if ($includePhone) {
-            fputcsv($file, ['Unique ID', 'Size', 'Name', 'Phone', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Unique ID', 'Size', 'Name', 'Phone', 'Price', 'Discount', 'Item Total', 'Payment Status', 'Date Received']);
         } else {
-            fputcsv($file, ['Unique ID', 'Size', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Unique ID', 'Size', 'Price', 'Discount', 'Item Total', 'Payment Status', 'Date Received']);
         }
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
                 if ($includePhone) {
-                    fputcsv($file, [$item->unique_id, $item->size, $order->name, $order->phone, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$item->unique_id, $item->size, $order->name, $order->phone, $item->price, $item->discount, $item->item_total, $order->payment_status, $order->date_received]);
                 } else {
-                    fputcsv($file, [$item->unique_id, $item->size, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$item->unique_id, $item->size, $item->price, $item->discount, $item->item_total, $order->payment_status, $order->date_received]);
                 }
             }
         }
@@ -578,17 +578,17 @@ public function downloadCarpetsByMonth(Request $request)
         $file = fopen('php://output', 'w');
 
         if ($includePhone) {
-            fputcsv($file, ['Unique ID', 'Size', 'Name', 'Phone', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Unique ID', 'Size', 'Name', 'Phone', 'Price', 'Discount', 'Item Total', 'Payment Status', 'Date Received']);
         } else {
-            fputcsv($file, ['Unique ID', 'Size', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Unique ID', 'Size', 'Price', 'Discount', 'Item Total', 'Payment Status', 'Date Received']);
         }
 
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
                 if ($includePhone) {
-                    fputcsv($file, [$item->unique_id, $item->size, $order->name, $order->phone, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$item->unique_id, $item->size, $order->name, $order->phone, $item->price, $item->discount, $item->item_total, $order->payment_status, $order->date_received]);
                 } else {
-                    fputcsv($file, [$item->unique_id, $item->size, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$item->unique_id, $item->size, $item->price, $item->discount, $item->item_total, $order->payment_status, $order->date_received]);
                 }
             }
         }

@@ -207,11 +207,16 @@ class ReportController extends Controller
 
         $customerData = $this->getCarpetCustomerAnalytics($orders, $fromDate, $toDate);
 
-        $pendingDeliveries = Order::where('type', 'carpet')->where('delivered', 'Not Delivered')->count();
-        $completedToday    = Order::where('type', 'carpet')->where('delivered', 'Delivered')
-                                ->whereDate('updated_at', Carbon::today())->count();
+        $pendingDeliveries = Order::where('type', 'carpet')
+            ->whereHas('items', fn($q) => $q->where('delivered', 'Not Delivered'))->count();
+        $completedToday = Order::where('type', 'carpet')
+            ->whereDoesntHave('items', fn($q) => $q->where('delivered', 'Not Delivered'))
+            ->whereHas('items')
+            ->whereDate('updated_at', Carbon::today())->count();
 
-        $deliveredOrders = $orders->where('delivered', 'Delivered');
+        $deliveredOrders = $orders->filter(
+            fn($o) => $o->items->isNotEmpty() && $o->items->every(fn($i) => $i->delivered === 'Delivered')
+        );
         $avgProcessingDays = 0;
         if ($deliveredOrders->count() > 0) {
             $totalDays = $deliveredOrders->map(function($order) {
@@ -298,11 +303,16 @@ class ReportController extends Controller
 
         $customerData = $this->getLaundryCustomerAnalytics($orders, $fromDate, $toDate);
 
-        $pendingDeliveries = Order::where('type', 'laundry')->where('delivered', 'Not Delivered')->count();
-        $completedToday    = Order::where('type', 'laundry')->where('delivered', 'Delivered')
-                                ->whereDate('updated_at', Carbon::today())->count();
+        $pendingDeliveries = Order::where('type', 'laundry')
+            ->whereHas('items', fn($q) => $q->where('delivered', 'Not Delivered'))->count();
+        $completedToday = Order::where('type', 'laundry')
+            ->whereDoesntHave('items', fn($q) => $q->where('delivered', 'Not Delivered'))
+            ->whereHas('items')
+            ->whereDate('updated_at', Carbon::today())->count();
 
-        $deliveredOrders = $orders->where('delivered', 'Delivered');
+        $deliveredOrders = $orders->filter(
+            fn($o) => $o->items->isNotEmpty() && $o->items->every(fn($i) => $i->delivered === 'Delivered')
+        );
         $avgProcessingDays = 0;
         if ($deliveredOrders->count() > 0) {
             $totalDays = $deliveredOrders->map(function($order) {
@@ -432,7 +442,7 @@ class ReportController extends Controller
     {
         $pendingDelivery = Order::with('items')
             ->where('type', 'carpet')
-            ->where('delivered', 'Not Delivered')
+            ->whereHas('items', fn($q) => $q->where('delivered', 'Not Delivered'))
             ->orderBy('date_received', 'asc')
             ->get()
             ->map(function($order) {

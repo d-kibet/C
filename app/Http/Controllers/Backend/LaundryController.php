@@ -275,16 +275,16 @@ class LaundryController extends Controller
     $callback = function() use ($orders, $includePhone) {
         $file = fopen('php://output', 'w');
         if ($includePhone) {
-            fputcsv($file, ['Name', 'Phone', 'Item', 'Qty', 'Unit Price', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Name', 'Phone', 'Item', 'Qty', 'Unit Price', 'Item Total', 'Payment Status', 'Date Received']);
         } else {
-            fputcsv($file, ['Name', 'Item', 'Qty', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Name', 'Item', 'Qty', 'Unit Price', 'Item Total', 'Payment Status', 'Date Received']);
         }
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
                 if ($includePhone) {
-                    fputcsv($file, [$order->name, $order->phone, $item->description, $item->quantity, $item->unit_price, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$order->name, $order->phone, $item->item_description, $item->quantity, $item->price, $item->item_total, $order->payment_status, $order->date_received]);
                 } else {
-                    fputcsv($file, [$order->name, $item->description, $item->quantity, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$order->name, $item->item_description, $item->quantity, $item->price, $item->item_total, $order->payment_status, $order->date_received]);
                 }
             }
         }
@@ -359,17 +359,17 @@ public function downloadLaundryByMonth(Request $request)
         $file = fopen('php://output', 'w');
 
         if ($includePhone) {
-            fputcsv($file, ['Name', 'Phone', 'Item', 'Qty', 'Unit Price', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Name', 'Phone', 'Item', 'Qty', 'Unit Price', 'Item Total', 'Payment Status', 'Date Received']);
         } else {
-            fputcsv($file, ['Name', 'Item', 'Qty', 'Subtotal', 'Order Total', 'Payment Status', 'Date Received']);
+            fputcsv($file, ['Name', 'Item', 'Qty', 'Unit Price', 'Item Total', 'Payment Status', 'Date Received']);
         }
 
         foreach ($orders as $order) {
             foreach ($order->items as $item) {
                 if ($includePhone) {
-                    fputcsv($file, [$order->name, $order->phone, $item->description, $item->quantity, $item->unit_price, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$order->name, $order->phone, $item->item_description, $item->quantity, $item->price, $item->item_total, $order->payment_status, $order->date_received]);
                 } else {
-                    fputcsv($file, [$order->name, $item->description, $item->quantity, $item->subtotal, $order->total, $order->payment_status, $order->date_received]);
+                    fputcsv($file, [$order->name, $item->item_description, $item->quantity, $item->price, $item->item_total, $order->payment_status, $order->date_received]);
                 }
             }
         }
@@ -423,7 +423,7 @@ public function downloadNewLaundryByMonth(Request $request)
         }
 
         foreach ($newOrders as $order) {
-            $items = $order->items->map(fn($i) => ($i->description ?? '') . ' x' . ($i->quantity ?? 1))->implode('; ');
+            $items = $order->items->map(fn($i) => ($i->item_description ?? '') . ' x' . ($i->quantity ?? 1))->implode('; ');
             if ($includePhone) {
                 fputcsv($file, [$order->name, $order->phone, $items, $order->total, $order->payment_status, $order->date_received]);
             } else {

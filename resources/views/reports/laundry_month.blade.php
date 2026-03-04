@@ -103,7 +103,7 @@
                                     <td>{{ $order->phone }}</td>
                                     <td>
                                         @foreach($order->items as $item)
-                                            <span class="d-block">{{ $item->description }} &times; {{ $item->quantity }}</span>
+                                            <span class="d-block">{{ $item->item_description }} &times; {{ $item->quantity }}</span>
                                         @endforeach
                                     </td>
                                     <td>{{ number_format($order->total, 2) }}</td>
@@ -154,7 +154,7 @@
                                     <td>{{ $order->phone }}</td>
                                     <td>
                                         @foreach($order->items as $item)
-                                            <span class="d-block">{{ $item->description }} &times; {{ $item->quantity }}</span>
+                                            <span class="d-block">{{ $item->item_description }} &times; {{ $item->quantity }}</span>
                                         @endforeach
                                     </td>
                                     <td>{{ number_format($order->total, 2) }}</td>

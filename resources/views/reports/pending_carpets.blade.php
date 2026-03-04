@@ -147,7 +147,7 @@
                                                     <td>{{ number_format($order->total, 2) }}</td>
                                                     <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
                                                     <td>
-                                                        @if($order->delivered == 'Delivered')
+                                                        @if($order->isFullyDelivered())
                                                             <span class="badge bg-success">Delivered</span>
                                                         @else
                                                             <span class="badge bg-secondary">Not Delivered</span>
