@@ -356,6 +356,27 @@ class ReportController extends Controller
 
     private function getCarpetCustomerAnalytics($orders, $fromDate, $toDate)
     {
+        // Batch-fetch the absolute first-seen date per unique_id from both systems
+        $allIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
+
+        $ordersFirst = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('orders.type', 'carpet')->whereIn('order_items.unique_id', $allIds)
+            ->groupBy('order_items.unique_id')
+            ->pluck(DB::raw('MIN(orders.date_received)'), 'order_items.unique_id')
+            ->toArray();
+
+        $legacyFirst = Carpet::withTrashed()->whereIn('uniqueid', $allIds)
+            ->groupBy('uniqueid')
+            ->pluck(DB::raw('MIN(date_received)'), 'uniqueid')
+            ->toArray();
+
+        $firstSeenMap = [];
+        foreach ($allIds as $uid) {
+            $dates = array_filter([$ordersFirst[$uid] ?? null, $legacyFirst[$uid] ?? null]);
+            $firstSeenMap[$uid] = $dates ? min($dates) : null;
+        }
+
         $weeklyData  = [];
         $currentDate = $fromDate->copy()->startOfWeek();
 
@@ -366,14 +387,15 @@ class ReportController extends Controller
                 return $d >= $currentDate && $d <= $weekEnd;
             });
 
-            $newCustomers = $weekOrders->filter(function($order) use ($currentDate) {
-                $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
-                if (empty($uniqueIds)) return false;
-                return !DB::table('order_items')
-                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
-                    ->whereIn('order_items.unique_id', $uniqueIds)
-                    ->where('orders.date_received', '<', $currentDate)
-                    ->exists();
+            $newCustomers = $weekOrders->filter(function($order) use ($currentDate, $firstSeenMap) {
+                $ids = $order->items->pluck('unique_id')->filter()->toArray();
+                if (empty($ids)) return false;
+                foreach ($ids as $uid) {
+                    if (isset($firstSeenMap[$uid]) && Carbon::parse($firstSeenMap[$uid]) < $currentDate) {
+                        return false; // at least one uid seen before this week → returning
+                    }
+                }
+                return true;
             })->count();
 
             $weeklyData[] = [
@@ -400,6 +422,27 @@ class ReportController extends Controller
 
     private function getLaundryCustomerAnalytics($orders, $fromDate, $toDate)
     {
+        // Batch-fetch the absolute first-seen date per unique_id from both systems
+        $allIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
+
+        $ordersFirst = DB::table('order_items')
+            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->where('orders.type', 'laundry')->whereIn('order_items.unique_id', $allIds)
+            ->groupBy('order_items.unique_id')
+            ->pluck(DB::raw('MIN(orders.date_received)'), 'order_items.unique_id')
+            ->toArray();
+
+        $legacyFirst = Laundry::withTrashed()->whereIn('unique_id', $allIds)
+            ->groupBy('unique_id')
+            ->pluck(DB::raw('MIN(date_received)'), 'unique_id')
+            ->toArray();
+
+        $firstSeenMap = [];
+        foreach ($allIds as $uid) {
+            $dates = array_filter([$ordersFirst[$uid] ?? null, $legacyFirst[$uid] ?? null]);
+            $firstSeenMap[$uid] = $dates ? min($dates) : null;
+        }
+
         $weeklyData  = [];
         $currentDate = $fromDate->copy()->startOfWeek();
 
@@ -410,14 +453,15 @@ class ReportController extends Controller
                 return $d >= $currentDate && $d <= $weekEnd;
             });
 
-            $newCustomers = $weekOrders->filter(function($order) use ($currentDate) {
-                $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
-                if (empty($uniqueIds)) return false;
-                return !DB::table('order_items')
-                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
-                    ->whereIn('order_items.unique_id', $uniqueIds)
-                    ->where('orders.date_received', '<', $currentDate)
-                    ->exists();
+            $newCustomers = $weekOrders->filter(function($order) use ($currentDate, $firstSeenMap) {
+                $ids = $order->items->pluck('unique_id')->filter()->toArray();
+                if (empty($ids)) return false;
+                foreach ($ids as $uid) {
+                    if (isset($firstSeenMap[$uid]) && Carbon::parse($firstSeenMap[$uid]) < $currentDate) {
+                        return false; // at least one uid seen before this week → returning
+                    }
+                }
+                return true;
             })->count();
 
             $weeklyData[] = [

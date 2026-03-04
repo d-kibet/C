@@ -531,12 +531,21 @@ public function viewCarpetsByMonth(Request $request)
         $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
     }
 
-    // Phones that appeared before this month in either system
-    $priorPhones = Order::where('type', 'carpet')->where('date_received', '<', $startStr)->pluck('phone')
-        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
-        ->unique()->toArray();
+    // Unique IDs in this period that appeared before it in either system
+    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
 
-    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
+    $priorIds = DB::table('order_items')
+        ->join('orders', 'order_items.order_id', '=', 'orders.id')
+        ->where('orders.type', 'carpet')->where('orders.date_received', '<', $startStr)
+        ->whereIn('order_items.unique_id', $periodIds)
+        ->pluck('order_items.unique_id')
+        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->whereIn('uniqueid', $periodIds)->pluck('uniqueid'))
+        ->filter()->unique()->toArray();
+
+    $newOrders = $orders->filter(function($order) use ($priorIds) {
+        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        return !empty($ids) && empty(array_intersect($ids, $priorIds));
+    });
 
     $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
     $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
@@ -641,11 +650,20 @@ public function downloadNewCarpetsByMonth(Request $request)
         $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
     }
 
-    $priorPhones = Order::where('type', 'carpet')->where('date_received', '<', $startStr)->pluck('phone')
-        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
-        ->unique()->toArray();
+    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
 
-    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
+    $priorIds = DB::table('order_items')
+        ->join('orders', 'order_items.order_id', '=', 'orders.id')
+        ->where('orders.type', 'carpet')->where('orders.date_received', '<', $startStr)
+        ->whereIn('order_items.unique_id', $periodIds)
+        ->pluck('order_items.unique_id')
+        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->whereIn('uniqueid', $periodIds)->pluck('uniqueid'))
+        ->filter()->unique()->toArray();
+
+    $newOrders = $orders->filter(function($order) use ($priorIds) {
+        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        return !empty($ids) && empty(array_intersect($ids, $priorIds));
+    });
 
     $includePhone = Gate::allows('admin.all');
 

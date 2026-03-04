@@ -315,11 +315,20 @@ public function viewLaundryByMonth(Request $request)
         $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
     }
 
-    $priorPhones = Order::where('type', 'laundry')->where('date_received', '<', $startStr)->pluck('phone')
-        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
-        ->unique()->toArray();
+    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
 
-    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
+    $priorIds = DB::table('order_items')
+        ->join('orders', 'order_items.order_id', '=', 'orders.id')
+        ->where('orders.type', 'laundry')->where('orders.date_received', '<', $startStr)
+        ->whereIn('order_items.unique_id', $periodIds)
+        ->pluck('order_items.unique_id')
+        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->whereIn('unique_id', $periodIds)->pluck('unique_id'))
+        ->filter()->unique()->toArray();
+
+    $newOrders = $orders->filter(function($order) use ($priorIds) {
+        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        return !empty($ids) && empty(array_intersect($ids, $priorIds));
+    });
 
     $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
     $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
@@ -417,11 +426,20 @@ public function downloadNewLaundryByMonth(Request $request)
         $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
     }
 
-    $priorPhones = Order::where('type', 'laundry')->where('date_received', '<', $startStr)->pluck('phone')
-        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
-        ->unique()->toArray();
+    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
 
-    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
+    $priorIds = DB::table('order_items')
+        ->join('orders', 'order_items.order_id', '=', 'orders.id')
+        ->where('orders.type', 'laundry')->where('orders.date_received', '<', $startStr)
+        ->whereIn('order_items.unique_id', $periodIds)
+        ->pluck('order_items.unique_id')
+        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->whereIn('unique_id', $periodIds)->pluck('unique_id'))
+        ->filter()->unique()->toArray();
+
+    $newOrders = $orders->filter(function($order) use ($priorIds) {
+        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        return !empty($ids) && empty(array_intersect($ids, $priorIds));
+    });
 
     $includePhone = Gate::allows('admin.all');
 
