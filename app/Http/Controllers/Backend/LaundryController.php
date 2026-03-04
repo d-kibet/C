@@ -315,18 +315,15 @@ public function viewLaundryByMonth(Request $request)
         $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
     }
 
-    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
-
     $priorIds = DB::table('order_items')
         ->join('orders', 'order_items.order_id', '=', 'orders.id')
         ->where('orders.type', 'laundry')->where('orders.date_received', '<', $startStr)
-        ->whereIn('order_items.unique_id', $periodIds)
-        ->pluck('order_items.unique_id')
-        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->whereIn('unique_id', $periodIds)->pluck('unique_id'))
-        ->filter()->unique()->toArray();
+        ->distinct()->pluck('order_items.unique_id')
+        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->distinct()->pluck('unique_id'))
+        ->filter()->map(fn($id) => strtoupper(trim($id)))->unique()->toArray();
 
     $newOrders = $orders->filter(function($order) use ($priorIds) {
-        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        $ids = $order->items->pluck('unique_id')->filter()->map(fn($id) => strtoupper(trim($id)))->toArray();
         return !empty($ids) && empty(array_intersect($ids, $priorIds));
     });
 
@@ -426,18 +423,15 @@ public function downloadNewLaundryByMonth(Request $request)
         $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
     }
 
-    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
-
     $priorIds = DB::table('order_items')
         ->join('orders', 'order_items.order_id', '=', 'orders.id')
         ->where('orders.type', 'laundry')->where('orders.date_received', '<', $startStr)
-        ->whereIn('order_items.unique_id', $periodIds)
-        ->pluck('order_items.unique_id')
-        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->whereIn('unique_id', $periodIds)->pluck('unique_id'))
-        ->filter()->unique()->toArray();
+        ->distinct()->pluck('order_items.unique_id')
+        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->distinct()->pluck('unique_id'))
+        ->filter()->map(fn($id) => strtoupper(trim($id)))->unique()->toArray();
 
     $newOrders = $orders->filter(function($order) use ($priorIds) {
-        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        $ids = $order->items->pluck('unique_id')->filter()->map(fn($id) => strtoupper(trim($id)))->toArray();
         return !empty($ids) && empty(array_intersect($ids, $priorIds));
     });
 

@@ -531,19 +531,15 @@ public function viewCarpetsByMonth(Request $request)
         $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
     }
 
-    // Unique IDs in this period that appeared before it in either system
-    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
-
     $priorIds = DB::table('order_items')
         ->join('orders', 'order_items.order_id', '=', 'orders.id')
         ->where('orders.type', 'carpet')->where('orders.date_received', '<', $startStr)
-        ->whereIn('order_items.unique_id', $periodIds)
-        ->pluck('order_items.unique_id')
-        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->whereIn('uniqueid', $periodIds)->pluck('uniqueid'))
-        ->filter()->unique()->toArray();
+        ->distinct()->pluck('order_items.unique_id')
+        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->distinct()->pluck('uniqueid'))
+        ->filter()->map(fn($id) => strtoupper(trim($id)))->unique()->toArray();
 
     $newOrders = $orders->filter(function($order) use ($priorIds) {
-        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        $ids = $order->items->pluck('unique_id')->filter()->map(fn($id) => strtoupper(trim($id)))->toArray();
         return !empty($ids) && empty(array_intersect($ids, $priorIds));
     });
 
@@ -650,18 +646,15 @@ public function downloadNewCarpetsByMonth(Request $request)
         $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
     }
 
-    $periodIds = $orders->flatMap(fn($o) => $o->items->pluck('unique_id'))->filter()->unique()->toArray();
-
     $priorIds = DB::table('order_items')
         ->join('orders', 'order_items.order_id', '=', 'orders.id')
         ->where('orders.type', 'carpet')->where('orders.date_received', '<', $startStr)
-        ->whereIn('order_items.unique_id', $periodIds)
-        ->pluck('order_items.unique_id')
-        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->whereIn('uniqueid', $periodIds)->pluck('uniqueid'))
-        ->filter()->unique()->toArray();
+        ->distinct()->pluck('order_items.unique_id')
+        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->distinct()->pluck('uniqueid'))
+        ->filter()->map(fn($id) => strtoupper(trim($id)))->unique()->toArray();
 
     $newOrders = $orders->filter(function($order) use ($priorIds) {
-        $ids = $order->items->pluck('unique_id')->filter()->toArray();
+        $ids = $order->items->pluck('unique_id')->filter()->map(fn($id) => strtoupper(trim($id)))->toArray();
         return !empty($ids) && empty(array_intersect($ids, $priorIds));
     });
 
