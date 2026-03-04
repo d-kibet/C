@@ -514,26 +514,33 @@ public function viewCarpetsByMonth(Request $request)
 
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
+    $startStr  = $startDate->toDateString();
+    $endStr    = $endDate->toDateString();
 
+    // Combine new system orders + legacy carpet records for the period
     $orders = Order::with('items')
         ->where('type', 'carpet')
-        ->whereBetween('date_received', [$startDate, $endDate])
+        ->whereBetween('date_received', [$startStr, $endStr])
         ->get();
 
-    $totalPaid   = $orders->where('payment_status', 'Paid')->sum('total');
-    $totalUnpaid = $orders->where('payment_status', 'Not Paid')->sum('total');
-    $grandTotal  = $totalPaid + $totalUnpaid;
+    $oldCarpets = Carpet::withTrashed()
+        ->whereBetween('date_received', [$startStr, $endStr])
+        ->get();
 
-    // New clients: unique IDs in this order have never appeared before this month
-    $newOrders = $orders->filter(function ($order) use ($startDate) {
-        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
-        if (empty($uniqueIds)) return false;
-        return !DB::table('order_items')
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->whereIn('order_items.unique_id', $uniqueIds)
-            ->where('orders.date_received', '<', $startDate)
-            ->exists();
-    });
+    if ($oldCarpets->isNotEmpty()) {
+        $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
+    }
+
+    // Phones that appeared before this month in either system
+    $priorPhones = Order::where('type', 'carpet')->where('date_received', '<', $startStr)->pluck('phone')
+        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
+        ->unique()->toArray();
+
+    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
+
+    $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
+    $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
+    $grandTotal  = $totalPaid + $totalUnpaid;
 
     return view('reports.carpets_month', [
         'month'      => $month,
@@ -556,14 +563,21 @@ public function downloadCarpetsByMonth(Request $request)
 
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
+    $startStr  = $startDate->toDateString();
+    $endStr    = $endDate->toDateString();
 
     $orders = Order::with('items')
         ->where('type', 'carpet')
-        ->whereBetween('date_received', [$startDate, $endDate])
+        ->whereBetween('date_received', [$startStr, $endStr])
         ->get();
 
-    $totalPaid   = $orders->where('payment_status', 'Paid')->sum('total');
-    $totalUnpaid = $orders->where('payment_status', 'Not Paid')->sum('total');
+    $oldCarpets = Carpet::withTrashed()->whereBetween('date_received', [$startStr, $endStr])->get();
+    if ($oldCarpets->isNotEmpty()) {
+        $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
+    }
+
+    $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
+    $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
     $grandTotal  = $totalPaid + $totalUnpaid;
 
     $includePhone = Gate::allows('admin.all');
@@ -614,21 +628,24 @@ public function downloadNewCarpetsByMonth(Request $request)
 
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
+    $startStr  = $startDate->toDateString();
+    $endStr    = $endDate->toDateString();
 
     $orders = Order::with('items')
         ->where('type', 'carpet')
-        ->whereBetween('date_received', [$startDate, $endDate])
+        ->whereBetween('date_received', [$startStr, $endStr])
         ->get();
 
-    $newOrders = $orders->filter(function ($order) use ($startDate) {
-        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
-        if (empty($uniqueIds)) return false;
-        return !DB::table('order_items')
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->whereIn('order_items.unique_id', $uniqueIds)
-            ->where('orders.date_received', '<', $startDate)
-            ->exists();
-    });
+    $oldCarpets = Carpet::withTrashed()->whereBetween('date_received', [$startStr, $endStr])->get();
+    if ($oldCarpets->isNotEmpty()) {
+        $orders = $orders->concat($this->carpetsToFakeOrders($oldCarpets));
+    }
+
+    $priorPhones = Order::where('type', 'carpet')->where('date_received', '<', $startStr)->pluck('phone')
+        ->merge(Carpet::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
+        ->unique()->toArray();
+
+    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
 
     $includePhone = Gate::allows('admin.all');
 
@@ -661,5 +678,45 @@ public function downloadNewCarpetsByMonth(Request $request)
 
     return response()->stream($callback, 200, $headers);
 }
+
+    private function carpetsToFakeOrders($carpets): \Illuminate\Support\Collection
+    {
+        return collect($carpets)
+            ->groupBy(fn($c) => $c->phone . '|' . $c->date_received)
+            ->map(function ($group) {
+                $first    = $group->first();
+                $statuses = $group->pluck('payment_status')->unique()->values();
+
+                if ($statuses->count() === 1 && $statuses->first() === 'Paid') {
+                    $payStatus = 'Paid';
+                } elseif ($statuses->contains('Paid')) {
+                    $payStatus = 'Partial';
+                } else {
+                    $payStatus = 'Not Paid';
+                }
+
+                $order                 = new \stdClass();
+                $order->name           = $first->name;
+                $order->phone          = $first->phone;
+                $order->location       = $first->location ?? '';
+                $order->date_received  = $first->date_received;
+                $order->payment_status = $payStatus;
+                $order->total          = $group->sum(fn($c) => (float)($c->price ?? 0) - (float)($c->discount ?? 0));
+                $order->aging_days     = Carbon::parse($first->date_received)->diffInDays(now());
+                $order->items          = $group->map(function ($c) {
+                    $item             = new \stdClass();
+                    $item->unique_id  = $c->uniqueid;
+                    $item->size       = $c->size;
+                    $item->price      = (float)($c->price    ?? 0);
+                    $item->discount   = (float)($c->discount ?? 0);
+                    $item->item_total = (float)($c->price    ?? 0) - (float)($c->discount ?? 0);
+                    $item->delivered  = $c->delivered ?? 'Not Delivered';
+                    return $item;
+                })->values();
+
+                return $order;
+            })
+            ->values();
+    }
 
 }

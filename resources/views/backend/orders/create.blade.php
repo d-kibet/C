@@ -131,20 +131,21 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 text-uppercase"><i class="mdi mdi-format-list-numbered me-1"></i> Items</h5>
-                        <div class="d-flex align-items-center gap-2">
-                            <div id="carpet-base-container" style="display:none;">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text"><i class="mdi mdi-tag-outline me-1"></i> Base ID</span>
-                                    <input type="text" id="carpet-base-id" class="form-control" placeholder="e.g. RA12" style="width:110px;">
-                                </div>
+                        <div id="carpet-base-container" style="display:none;">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-text"><i class="mdi mdi-tag-outline me-1"></i> Base ID</span>
+                                <input type="text" id="carpet-base-id" class="form-control" placeholder="e.g. RA12" style="width:110px;">
                             </div>
-                            <button type="button" class="btn btn-primary btn-sm rounded-pill" id="addItemBtn">
-                                <i class="mdi mdi-plus me-1"></i> Add Item
-                            </button>
                         </div>
                     </div>
 
                     <div id="items-container"></div>
+
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-primary btn-sm rounded-pill" id="addItemBtn">
+                            <i class="mdi mdi-plus me-1"></i> Add Item
+                        </button>
+                    </div>
 
                     {{-- Totals --}}
                     <div class="row mt-3 justify-content-end">

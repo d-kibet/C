@@ -107,9 +107,6 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-3">
                         <h5 class="mb-0 text-uppercase"><i class="mdi mdi-format-list-numbered me-1"></i> Items</h5>
-                        <button type="button" class="btn btn-primary btn-sm rounded-pill" id="addItemBtn">
-                            <i class="mdi mdi-plus me-1"></i> Add Item
-                        </button>
                     </div>
 
                     <div id="items-container">
@@ -212,6 +209,12 @@
                             </div>
                         </div>
                         @endforeach
+                    </div>
+
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-primary btn-sm rounded-pill" id="addItemBtn">
+                            <i class="mdi mdi-plus me-1"></i> Add Item
+                        </button>
                     </div>
 
                     <div class="row mt-3 justify-content-end">

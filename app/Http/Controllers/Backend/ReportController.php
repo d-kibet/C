@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Carpet;
+use App\Models\Laundry;
 use App\Models\Order;
 use App\Models\Mpesa;
 use App\Models\Expense;
@@ -17,17 +19,18 @@ class ReportController extends Controller
         $date = $request->input('date', Carbon::today()->toDateString());
         $selectedDate = Carbon::parse($date)->toDateString();
 
-        $paidOrders = Order::with('items')
+        $allOrders = Order::with('items')
             ->where('type', 'carpet')
             ->whereDate('date_received', $selectedDate)
-            ->where('payment_status', 'Paid')
             ->get();
 
-        $unpaidOrders = Order::with('items')
-            ->where('type', 'carpet')
-            ->whereDate('date_received', $selectedDate)
-            ->whereIn('payment_status', ['Not Paid', 'Partial'])
-            ->get();
+        $oldCarpets = Carpet::withTrashed()->whereDate('date_received', $selectedDate)->get();
+        if ($oldCarpets->isNotEmpty()) {
+            $allOrders = $allOrders->concat($this->carpetsToFakeOrders($oldCarpets));
+        }
+
+        $paidOrders   = $allOrders->where('payment_status', 'Paid');
+        $unpaidOrders = $allOrders->whereIn('payment_status', ['Not Paid', 'Partial']);
 
         $totalPaidCarpets   = $paidOrders->sum('total');
         $totalUnpaidCarpets = $unpaidOrders->sum('total');
@@ -43,17 +46,18 @@ class ReportController extends Controller
         $date = $request->input('date', Carbon::today()->toDateString());
         $selectedDate = Carbon::parse($date)->toDateString();
 
-        $paidOrders = Order::with('items')
+        $allOrders = Order::with('items')
             ->where('type', 'laundry')
             ->whereDate('date_received', $selectedDate)
-            ->where('payment_status', 'Paid')
             ->get();
 
-        $unpaidOrders = Order::with('items')
-            ->where('type', 'laundry')
-            ->whereDate('date_received', $selectedDate)
-            ->whereIn('payment_status', ['Not Paid', 'Partial'])
-            ->get();
+        $oldLaundries = Laundry::withTrashed()->whereDate('date_received', $selectedDate)->get();
+        if ($oldLaundries->isNotEmpty()) {
+            $allOrders = $allOrders->concat($this->laundriesToFakeOrders($oldLaundries));
+        }
+
+        $paidOrders   = $allOrders->where('payment_status', 'Paid');
+        $unpaidOrders = $allOrders->whereIn('payment_status', ['Not Paid', 'Partial']);
 
         $totalLaundryPaid   = (float) $paidOrders->sum('total');
         $totalLaundryUnpaid = (float) $unpaidOrders->sum('total');
@@ -475,6 +479,84 @@ class ReportController extends Controller
             'unpaidValue',
             'avgAgingDays'
         ));
+    }
+
+    private function carpetsToFakeOrders($carpets): \Illuminate\Support\Collection
+    {
+        return collect($carpets)
+            ->groupBy(fn($c) => $c->phone . '|' . $c->date_received)
+            ->map(function ($group) {
+                $first    = $group->first();
+                $statuses = $group->pluck('payment_status')->unique()->values();
+
+                if ($statuses->count() === 1 && $statuses->first() === 'Paid') {
+                    $payStatus = 'Paid';
+                } elseif ($statuses->contains('Paid')) {
+                    $payStatus = 'Partial';
+                } else {
+                    $payStatus = 'Not Paid';
+                }
+
+                $order                 = new \stdClass();
+                $order->name           = $first->name;
+                $order->phone          = $first->phone;
+                $order->location       = $first->location ?? '';
+                $order->date_received  = $first->date_received;
+                $order->payment_status = $payStatus;
+                $order->total          = $group->sum(fn($c) => (float)($c->price ?? 0) - (float)($c->discount ?? 0));
+                $order->items          = $group->map(function ($c) {
+                    $item             = new \stdClass();
+                    $item->unique_id  = $c->uniqueid;
+                    $item->size       = $c->size;
+                    $item->price      = (float)($c->price    ?? 0);
+                    $item->discount   = (float)($c->discount ?? 0);
+                    $item->item_total = (float)($c->price    ?? 0) - (float)($c->discount ?? 0);
+                    $item->delivered  = $c->delivered ?? 'Not Delivered';
+                    return $item;
+                })->values();
+
+                return $order;
+            })->values();
+    }
+
+    private function laundriesToFakeOrders($laundries): \Illuminate\Support\Collection
+    {
+        return collect($laundries)
+            ->groupBy(fn($l) => $l->phone . '|' . $l->date_received)
+            ->map(function ($group) {
+                $first    = $group->first();
+                $statuses = $group->pluck('payment_status')->unique()->values();
+
+                if ($statuses->count() === 1 && $statuses->first() === 'Paid') {
+                    $payStatus = 'Paid';
+                } elseif ($statuses->contains('Paid')) {
+                    $payStatus = 'Partial';
+                } else {
+                    $payStatus = 'Not Paid';
+                }
+
+                $order                 = new \stdClass();
+                $order->name           = $first->name;
+                $order->phone          = $first->phone;
+                $order->location       = $first->location ?? '';
+                $order->date_received  = $first->date_received;
+                $order->payment_status = $payStatus;
+                $order->total          = $group->sum(fn($l) => (float)($l->total ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0))));
+                $order->items          = $group->map(function ($l) {
+                    $item                   = new \stdClass();
+                    $item->unique_id        = $l->unique_id;
+                    $item->item_description = $l->item_description;
+                    $item->quantity         = $l->quantity;
+                    $item->weight           = $l->weight;
+                    $item->price            = (float)($l->price    ?? 0);
+                    $item->discount         = (float)($l->discount ?? 0);
+                    $item->item_total       = (float)($l->total    ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0)));
+                    $item->delivered        = $l->delivered ?? 'Not Delivered';
+                    return $item;
+                })->values();
+
+                return $order;
+            })->values();
     }
 
     private function getExpensePerformanceData($fromDate, $toDate)

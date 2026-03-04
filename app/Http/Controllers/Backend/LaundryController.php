@@ -302,25 +302,28 @@ public function viewLaundryByMonth(Request $request)
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
 
+    $startStr = $startDate->toDateString();
+    $endStr   = $endDate->toDateString();
+
     $orders = Order::with('items')
         ->where('type', 'laundry')
-        ->whereBetween('date_received', [$startDate, $endDate])
+        ->whereBetween('date_received', [$startStr, $endStr])
         ->get();
+
+    $oldLaundries = Laundry::withTrashed()->whereBetween('date_received', [$startStr, $endStr])->get();
+    if ($oldLaundries->isNotEmpty()) {
+        $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
+    }
+
+    $priorPhones = Order::where('type', 'laundry')->where('date_received', '<', $startStr)->pluck('phone')
+        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
+        ->unique()->toArray();
+
+    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
 
     $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
     $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
     $grandTotal  = $totalPaid + $totalUnpaid;
-
-    // New clients: unique IDs in this order have never appeared before this month
-    $newOrders = $orders->filter(function ($order) use ($startDate) {
-        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
-        if (empty($uniqueIds)) return false;
-        return !DB::table('order_items')
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->whereIn('order_items.unique_id', $uniqueIds)
-            ->where('orders.date_received', '<', $startDate)
-            ->exists();
-    });
 
     return view('reports.laundry_month', [
         'month'      => $month,
@@ -341,10 +344,18 @@ public function downloadLaundryByMonth(Request $request)
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
 
+    $startStr = $startDate->toDateString();
+    $endStr   = $endDate->toDateString();
+
     $orders = Order::with('items')
         ->where('type', 'laundry')
-        ->whereBetween('date_received', [$startDate, $endDate])
+        ->whereBetween('date_received', [$startStr, $endStr])
         ->get();
+
+    $oldLaundries = Laundry::withTrashed()->whereBetween('date_received', [$startStr, $endStr])->get();
+    if ($oldLaundries->isNotEmpty()) {
+        $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
+    }
 
     $totalPaid   = (float) $orders->where('payment_status', 'Paid')->sum('total');
     $totalUnpaid = (float) $orders->where('payment_status', 'Not Paid')->sum('total');
@@ -393,20 +404,24 @@ public function downloadNewLaundryByMonth(Request $request)
     $startDate = Carbon::createFromDate($year, $month, 1)->startOfDay();
     $endDate   = $startDate->copy()->endOfMonth();
 
+    $startStr = $startDate->toDateString();
+    $endStr   = $endDate->toDateString();
+
     $orders = Order::with('items')
         ->where('type', 'laundry')
-        ->whereBetween('date_received', [$startDate, $endDate])
+        ->whereBetween('date_received', [$startStr, $endStr])
         ->get();
 
-    $newOrders = $orders->filter(function ($order) use ($startDate) {
-        $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
-        if (empty($uniqueIds)) return false;
-        return !DB::table('order_items')
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
-            ->whereIn('order_items.unique_id', $uniqueIds)
-            ->where('orders.date_received', '<', $startDate)
-            ->exists();
-    });
+    $oldLaundries = Laundry::withTrashed()->whereBetween('date_received', [$startStr, $endStr])->get();
+    if ($oldLaundries->isNotEmpty()) {
+        $orders = $orders->concat($this->laundriesToFakeOrders($oldLaundries));
+    }
+
+    $priorPhones = Order::where('type', 'laundry')->where('date_received', '<', $startStr)->pluck('phone')
+        ->merge(Laundry::withTrashed()->where('date_received', '<', $startStr)->pluck('phone'))
+        ->unique()->toArray();
+
+    $newOrders = $orders->filter(fn($o) => !in_array($o->phone, $priorPhones));
 
     $includePhone = Gate::allows('admin.all');
 
@@ -436,5 +451,45 @@ public function downloadNewLaundryByMonth(Request $request)
 
     return response()->stream($callback, 200, $headers);
 }
+
+    private function laundriesToFakeOrders($laundries): \Illuminate\Support\Collection
+    {
+        return collect($laundries)
+            ->groupBy(fn($l) => $l->phone . '|' . $l->date_received)
+            ->map(function ($group) {
+                $first    = $group->first();
+                $statuses = $group->pluck('payment_status')->unique()->values();
+
+                if ($statuses->count() === 1 && $statuses->first() === 'Paid') {
+                    $payStatus = 'Paid';
+                } elseif ($statuses->contains('Paid')) {
+                    $payStatus = 'Partial';
+                } else {
+                    $payStatus = 'Not Paid';
+                }
+
+                $order                 = new \stdClass();
+                $order->name           = $first->name;
+                $order->phone          = $first->phone;
+                $order->location       = $first->location ?? '';
+                $order->date_received  = $first->date_received;
+                $order->payment_status = $payStatus;
+                $order->total          = $group->sum(fn($l) => (float)($l->total ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0))));
+                $order->items          = $group->map(function ($l) {
+                    $item                   = new \stdClass();
+                    $item->unique_id        = $l->unique_id;
+                    $item->item_description = $l->item_description;
+                    $item->quantity         = $l->quantity;
+                    $item->weight           = $l->weight;
+                    $item->price            = (float)($l->price    ?? 0);
+                    $item->discount         = (float)($l->discount ?? 0);
+                    $item->item_total       = (float)($l->total    ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0)));
+                    $item->delivered        = $l->delivered ?? 'Not Delivered';
+                    return $item;
+                })->values();
+
+                return $order;
+            })->values();
+    }
 
 }
