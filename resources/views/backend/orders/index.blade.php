@@ -118,10 +118,7 @@ $(document).ready(function() {
         pageLength: 25,
         responsive: true,
         drawCallback: function() {
-            // Re-init tooltips after every DataTable redraw
-            $('[data-bs-toggle="tooltip"]').each(function() {
-                new bootstrap.Tooltip(this, { trigger: 'hover' });
-            });
+            $('#ordersTable .uid-more').tooltip('dispose').tooltip({ trigger: 'hover click' });
         },
         language: {
             processing: '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div>',

@@ -85,7 +85,7 @@ class OrderController extends Controller
                     $extra = $uids->count() - 2;
                     if ($extra > 0) {
                         $all = e($uids->implode(', '));
-                        $visible .= '<span class="badge bg-secondary ms-1 uid-more" '
+                        $visible .= '<span class="badge bg-secondary ms-1 uid-more" style="cursor:default" '
                             . 'data-bs-toggle="tooltip" data-bs-placement="top" title="' . $all . '">+'
                             . $extra . ' more</span>';
                     }

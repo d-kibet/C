@@ -77,7 +77,10 @@ class MpesaService
 
         $timestamp = now()->format('YmdHis');
         $password = base64_encode($this->shortcode . $this->passkey . $timestamp);
-        $accountReference = $accountReference ?: strtoupper($serviceType) . '-' . $serviceId;
+        // Safaricom limits: AccountReference max 12 chars, TransactionDesc max 13 chars
+        $typeCode = strtoupper(substr($serviceType, 0, 3)); // CAR, LAU, ORD
+        $accountReference = $accountReference ?: substr($typeCode . '-' . $serviceId, 0, 12);
+        $transactionDesc  = substr('Pay-' . $typeCode . $serviceId, 0, 13);
 
         $payload = [
             'BusinessShortCode' => $this->shortcode,
@@ -90,7 +93,7 @@ class MpesaService
             'PhoneNumber' => $phone,
             'CallBackURL' => $this->callbackUrl,
             'AccountReference' => $accountReference,
-            'TransactionDesc' => "Payment for {$serviceType} #{$serviceId}",
+            'TransactionDesc' => $transactionDesc,
         ];
 
         $response = Http::withToken($accessToken)->post($this->urls['stk_url'], $payload);
