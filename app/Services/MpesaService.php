@@ -96,7 +96,12 @@ class MpesaService
             'TransactionDesc' => $transactionDesc,
         ];
 
-        $response = Http::withToken($accessToken)->post($this->urls['stk_url'], $payload);
+        try {
+            $response = Http::timeout(15)->withToken($accessToken)->post($this->urls['stk_url'], $payload);
+        } catch (\Exception $e) {
+            Log::error('M-Pesa: STK Push connection error', ['message' => $e->getMessage()]);
+            return ['success' => false, 'message' => 'Could not reach Safaricom. Please try again.'];
+        }
 
         if ($response->successful() && $response->json('ResponseCode') === '0') {
             // Save pending transaction
