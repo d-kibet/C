@@ -167,8 +167,8 @@ class CarpetController extends Controller
 
         // Revenue: new orders + legacy carpet + legacy laundry
         $todayTotalRevenue = Order::whereDate('date_received', $today)->sum('total')
-                           + Carpet::whereDate('date_received', $today)->sum('total')
-                           + Laundry::whereDate('date_received', $today)->sum('total');
+                           + (float) Carpet::whereDate('date_received', $today)->sum(DB::raw('price - COALESCE(discount, 0)'))
+                           + (float) Laundry::whereDate('date_received', $today)->sum(DB::raw('price - COALESCE(discount, 0)'));
 
         // Recent orders from new system (today + yesterday)
         $recentOrders = Order::withCount('items')
@@ -235,8 +235,8 @@ class CarpetController extends Controller
                                + Laundry::whereDate('date_received', $dateStr)->count();
 
             $weeklyRevenue[] = Order::whereDate('date_received', $dateStr)->sum('total')
-                             + Carpet::whereDate('date_received', $dateStr)->sum('total')
-                             + Laundry::whereDate('date_received', $dateStr)->sum('total');
+                             + (float) Carpet::whereDate('date_received', $dateStr)->sum(DB::raw('price - COALESCE(discount, 0)'))
+                             + (float) Laundry::whereDate('date_received', $dateStr)->sum(DB::raw('price - COALESCE(discount, 0)'));
         }
 
         return view('admin.index', compact(
