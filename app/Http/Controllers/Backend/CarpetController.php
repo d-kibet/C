@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreCarpetRequest;
 use App\Http\Requests\UpdateCarpetRequest;
 use App\Models\Carpet;
+use App\Models\Laundry;
 use App\Models\Order;
 use Illuminate\Http\Request;
 use Carbon\Carbon;
@@ -134,16 +135,26 @@ class CarpetController extends Controller
         $today     = Carbon::today()->toDateString();
         $yesterday = Carbon::yesterday()->toDateString();
 
-        // Summary card counts (from orders table)
-        $todayCarpetCount  = \App\Models\Order::where('type', 'carpet')
-                                ->whereDate('date_received', $today)->count();
+        // Carpets processed today: individual items from new orders + individual legacy carpet records
+        $todayCarpetCount = DB::table('order_items')
+                                ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                                ->where('orders.type', 'carpet')
+                                ->whereDate('orders.date_received', $today)
+                                ->whereNull('orders.deleted_at')
+                                ->count()
+                            + Carpet::whereDate('date_received', $today)->count();
 
-        $todayLaundryCount = \App\Models\Order::where('type', 'laundry')
-                                ->whereDate('date_received', $today)->count();
+        // Laundry processed today: individual items from new orders + individual legacy laundry records
+        $todayLaundryCount = DB::table('order_items')
+                                ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                                ->where('orders.type', 'laundry')
+                                ->whereDate('orders.date_received', $today)
+                                ->whereNull('orders.deleted_at')
+                                ->count()
+                             + Laundry::whereDate('date_received', $today)->count();
 
-        // New clients today: orders whose unique IDs have never appeared before today
-        $todayOrders = \App\Models\Order::with('items')->whereDate('date_received', $today)->get();
-
+        // New clients today (new system only — legacy clients are always returning)
+        $todayOrders = Order::with('items')->whereDate('date_received', $today)->get();
         $todayClientCount = $todayOrders->filter(function ($order) use ($today) {
             $uniqueIds = $order->items->pluck('unique_id')->filter()->toArray();
             if (empty($uniqueIds)) return false;
@@ -154,12 +165,13 @@ class CarpetController extends Controller
                 ->exists();
         })->count();
 
-        // Today's revenue (from orders.total which is already net of discounts)
-        $todayTotalRevenue = \App\Models\Order::whereDate('date_received', $today)
-                                ->sum('total');
+        // Revenue: new orders + legacy carpet + legacy laundry
+        $todayTotalRevenue = Order::whereDate('date_received', $today)->sum('total')
+                           + Carpet::whereDate('date_received', $today)->sum('total')
+                           + Laundry::whereDate('date_received', $today)->sum('total');
 
-        // Recent orders for the dashboard table (today + yesterday)
-        $recentOrders = \App\Models\Order::withCount('items')
+        // Recent orders from new system (today + yesterday)
+        $recentOrders = Order::withCount('items')
                             ->where(function ($q) use ($today, $yesterday) {
                                 $q->whereDate('date_received', $today)
                                   ->orWhereDate('date_received', $yesterday);
@@ -167,7 +179,34 @@ class CarpetController extends Controller
                             ->orderByRaw('(DATE(date_received) = CURDATE()) DESC, date_received DESC')
                             ->get();
 
-        // Weekly chart data (last 7 days including today)
+        // Merge legacy carpet records into recent orders
+        $legacyCarpets = Carpet::whereBetween('date_received', [$yesterday, $today])->get();
+        if ($legacyCarpets->isNotEmpty()) {
+            $fakeCarpetOrders = $this->carpetsToFakeOrders($legacyCarpets)->map(function ($o) {
+                $o->type        = 'carpet';
+                $o->is_legacy   = true;
+                $o->items_count = $o->items->count();
+                return $o;
+            });
+            $recentOrders = $recentOrders->concat($fakeCarpetOrders);
+        }
+
+        // Merge legacy laundry records into recent orders
+        $legacyLaundries = Laundry::whereBetween('date_received', [$yesterday, $today])->get();
+        if ($legacyLaundries->isNotEmpty()) {
+            $fakeLaundryOrders = $this->laundriesToFakeOrders($legacyLaundries)->map(function ($o) {
+                $o->type        = 'laundry';
+                $o->is_legacy   = true;
+                $o->items_count = $o->items->count();
+                return $o;
+            });
+            $recentOrders = $recentOrders->concat($fakeLaundryOrders);
+        }
+
+        // Sort combined list: today first, then by date desc
+        $recentOrders = $recentOrders->sortByDesc('date_received')->values();
+
+        // Weekly chart data (last 7 days including today) — both systems
         $weekLabels    = [];
         $weeklyCarpets = [];
         $weeklyLaundry = [];
@@ -177,13 +216,27 @@ class CarpetController extends Controller
             $date    = Carbon::today()->subDays($i);
             $dateStr = $date->toDateString();
 
-            $weekLabels[]    = $date->format('D d/m');
-            $weeklyCarpets[] = \App\Models\Order::where('type', 'carpet')
-                                    ->whereDate('date_received', $dateStr)->count();
-            $weeklyLaundry[] = \App\Models\Order::where('type', 'laundry')
-                                    ->whereDate('date_received', $dateStr)->count();
-            $weeklyRevenue[] = \App\Models\Order::whereDate('date_received', $dateStr)
-                                    ->sum('total');
+            $weekLabels[] = $date->format('D d/m');
+
+            $weeklyCarpets[] = DB::table('order_items')
+                                   ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                                   ->where('orders.type', 'carpet')
+                                   ->whereDate('orders.date_received', $dateStr)
+                                   ->whereNull('orders.deleted_at')
+                                   ->count()
+                               + Carpet::whereDate('date_received', $dateStr)->count();
+
+            $weeklyLaundry[] = DB::table('order_items')
+                                   ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                                   ->where('orders.type', 'laundry')
+                                   ->whereDate('orders.date_received', $dateStr)
+                                   ->whereNull('orders.deleted_at')
+                                   ->count()
+                               + Laundry::whereDate('date_received', $dateStr)->count();
+
+            $weeklyRevenue[] = Order::whereDate('date_received', $dateStr)->sum('total')
+                             + Carpet::whereDate('date_received', $dateStr)->sum('total')
+                             + Laundry::whereDate('date_received', $dateStr)->sum('total');
         }
 
         return view('admin.index', compact(
@@ -689,6 +742,46 @@ public function downloadNewCarpetsByMonth(Request $request)
 
     return response()->stream($callback, 200, $headers);
 }
+
+    private function laundriesToFakeOrders($laundries): \Illuminate\Support\Collection
+    {
+        return collect($laundries)
+            ->groupBy(fn($l) => $l->phone . '|' . $l->date_received)
+            ->map(function ($group) {
+                $first    = $group->first();
+                $statuses = $group->pluck('payment_status')->unique()->values();
+
+                if ($statuses->count() === 1 && $statuses->first() === 'Paid') {
+                    $payStatus = 'Paid';
+                } elseif ($statuses->contains('Paid')) {
+                    $payStatus = 'Partial';
+                } else {
+                    $payStatus = 'Not Paid';
+                }
+
+                $order                 = new \stdClass();
+                $order->name           = $first->name;
+                $order->phone          = $first->phone;
+                $order->location       = $first->location ?? '';
+                $order->date_received  = $first->date_received;
+                $order->payment_status = $payStatus;
+                $order->total          = $group->sum(fn($l) => (float)($l->total ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0))));
+                $order->items          = $group->map(function ($l) {
+                    $item                   = new \stdClass();
+                    $item->unique_id        = $l->unique_id;
+                    $item->item_description = $l->item_description;
+                    $item->quantity         = $l->quantity;
+                    $item->weight           = $l->weight;
+                    $item->price            = (float)($l->price    ?? 0);
+                    $item->discount         = (float)($l->discount ?? 0);
+                    $item->item_total       = (float)($l->total    ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0)));
+                    $item->delivered        = $l->delivered ?? 'Not Delivered';
+                    return $item;
+                })->values();
+
+                return $order;
+            })->values();
+    }
 
     private function carpetsToFakeOrders($carpets): \Illuminate\Support\Collection
     {

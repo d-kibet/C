@@ -39,8 +39,8 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Phone Number</label>
-                                <input type="text" name="phone" class="form-control bg-light @error('phone') is-invalid @enderror"
-                                    value="{{ old('phone', $order->phone) }}" readonly>
+                                <input type="text" name="phone" class="form-control @cannot('admin.all') bg-light @endcannot @error('phone') is-invalid @enderror"
+                                    value="{{ old('phone', $order->phone) }}" @cannot('admin.all') readonly @endcannot>
                                 @error('phone')<span class="text-danger">{{ $message }}</span>@enderror
                             </div>
                         </div>
@@ -125,7 +125,7 @@
                                 <div class="row">
                                     <div class="col-md-2">
                                         <label class="form-label form-label-sm">Unique ID</label>
-                                        <input type="text" name="items[{{ $i }}][unique_id]" class="form-control form-control-sm bg-light" value="{{ $item->unique_id }}" readonly>
+                                        <input type="text" name="items[{{ $i }}][unique_id]" class="form-control form-control-sm @cannot('admin.all') bg-light @endcannot" value="{{ $item->unique_id }}" @cannot('admin.all') readonly @endcannot>
                                     </div>
                                     <div class="col-md-2">
                                         <label class="form-label form-label-sm">Size</label>
@@ -165,7 +165,7 @@
                                 <div class="row">
                                     <div class="col-md-2">
                                         <label class="form-label form-label-sm">Unique ID</label>
-                                        <input type="text" name="items[{{ $i }}][unique_id]" class="form-control form-control-sm bg-light" value="{{ $item->unique_id }}" readonly>
+                                        <input type="text" name="items[{{ $i }}][unique_id]" class="form-control form-control-sm @cannot('admin.all') bg-light @endcannot" value="{{ $item->unique_id }}" @cannot('admin.all') readonly @endcannot>
                                     </div>
                                     <div class="col-md-3">
                                         <label class="form-label form-label-sm">Description</label>
@@ -249,7 +249,7 @@
                 <button type="button" class="btn btn-outline-danger btn-sm remove-item-btn"><i class="mdi mdi-close"></i></button>
             </div>
             <div class="row">
-                <div class="col-md-2"><label class="form-label form-label-sm">Unique ID</label><input type="text" name="items[__INDEX__][unique_id]" class="form-control form-control-sm bg-light" readonly></div>
+                <div class="col-md-2"><label class="form-label form-label-sm">Unique ID</label><input type="text" name="items[__INDEX__][unique_id]" class="form-control form-control-sm @cannot('admin.all') bg-light @endcannot" @cannot('admin.all') readonly @endcannot></div>
                 <div class="col-md-2"><label class="form-label form-label-sm">Size</label><input type="text" name="items[__INDEX__][size]" class="form-control form-control-sm item-size bg-light" readonly placeholder="e.g. 3x4"></div>
                 <div class="col-md-2"><label class="form-label form-label-sm">Rate (KES/m²)</label><input type="number" name="items[__INDEX__][multiplier]" class="form-control form-control-sm item-multiplier" value="30" step="any" min="0"></div>
                 <div class="col-md-2"><label class="form-label form-label-sm">Price (KES)</label><input type="number" name="items[__INDEX__][price]" class="form-control form-control-sm item-price" readonly step="any" min="0"></div>
@@ -272,7 +272,7 @@
                 <button type="button" class="btn btn-outline-danger btn-sm remove-item-btn"><i class="mdi mdi-close"></i></button>
             </div>
             <div class="row">
-                <div class="col-md-2"><label class="form-label form-label-sm">Unique ID</label><input type="text" name="items[__INDEX__][unique_id]" class="form-control form-control-sm bg-light" readonly></div>
+                <div class="col-md-2"><label class="form-label form-label-sm">Unique ID</label><input type="text" name="items[__INDEX__][unique_id]" class="form-control form-control-sm @cannot('admin.all') bg-light @endcannot" @cannot('admin.all') readonly @endcannot></div>
                 <div class="col-md-3"><label class="form-label form-label-sm">Description</label><input type="text" name="items[__INDEX__][item_description]" class="form-control form-control-sm"></div>
                 <div class="col-md-1"><label class="form-label form-label-sm">Qty</label><input type="number" name="items[__INDEX__][quantity]" class="form-control form-control-sm" value="1" min="1"></div>
                 <div class="col-md-1"><label class="form-label form-label-sm">Wt (kg)</label><input type="number" name="items[__INDEX__][weight]" class="form-control form-control-sm" step="0.1" min="0"></div>

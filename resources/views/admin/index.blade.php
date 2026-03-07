@@ -153,7 +153,7 @@
                                             </td>
                                             <td>{{ $order->name }}</td>
                                             <td>{{ $order->phone }}</td>
-                                            <td>{{ $order->items_count }}</td>
+                                            <td>{{ $order->items_count ?? $order->items->count() }}</td>
                                             @if(Auth::user()->can('admin.all'))
                                             <td>{{ number_format($order->total, 2) }}</td>
                                             @endif
@@ -168,7 +168,11 @@
                                             </td>
                                             <td>{{ \Carbon\Carbon::parse($order->date_received)->format('d M Y') }}</td>
                                             <td>
+                                                @if(empty($order->is_legacy))
                                                 <a href="{{ route('orders.show', $order->id) }}" class="btn btn-info btn-sm rounded-pill waves-effect waves-light">View</a>
+                                                @else
+                                                <span class="badge bg-secondary">Archive</span>
+                                                @endif
                                             </td>
                                         </tr>
                                     @empty
