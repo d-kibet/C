@@ -9,67 +9,82 @@ class CleanupNotifications extends Command
 {
     protected $signature = 'notifications:cleanup
                             {--days=30 : Delete notifications older than this many days}
-                            {--keep-unread : Keep unread notifications}
+                            {--keep-unread=0 : Keep unread notifications for this many extra days beyond --days (0 = keep all unread indefinitely)}
                             {--dry-run : Run in dry-run mode without deleting}';
 
     protected $description = 'Clean up old notifications to improve performance';
 
     public function handle()
     {
-        $days = $this->option('days');
-        $keepUnread = $this->option('keep-unread');
+        $days = (int) $this->option('days');
+        $keepUnreadDays = (int) $this->option('keep-unread');
         $dryRun = $this->option('dry-run');
 
         if ($dryRun) {
             $this->warn('DRY RUN MODE - No data will be deleted');
         }
 
-        $this->info("Cleaning up notifications older than {$days} days...");
+        $this->info("Cleaning up read notifications older than {$days} days...");
+        if ($keepUnreadDays > 0) {
+            $this->info("Keeping unread notifications younger than {$keepUnreadDays} days.");
+        } else {
+            $this->info("Keeping all unread notifications.");
+        }
         $this->newLine();
 
-        // Get total count before cleanup
         $totalBefore = DB::table('notifications')->count();
         $this->info("Total notifications before cleanup: {$totalBefore}");
         $this->newLine();
 
         $cutoffDate = now()->subDays($days);
 
-        // Build query
-        $query = DB::table('notifications')
+        // Always only delete read notifications; unread are deleted separately below
+        $readQuery = DB::table('notifications')
+            ->whereNotNull('read_at')
             ->where('created_at', '<', $cutoffDate);
 
-        if ($keepUnread) {
-            $query->whereNotNull('read_at');
-            $this->info('Keeping unread notifications...');
+        $readToDelete = $readQuery->count();
+        $this->line("  Read notifications to delete: {$readToDelete}");
+
+        // Unread older than the extended keep-unread window
+        $unreadDeleted = 0;
+        $unreadToDelete = 0;
+        if ($keepUnreadDays > 0) {
+            $unreadCutoff = now()->subDays($keepUnreadDays);
+            $unreadQuery = DB::table('notifications')
+                ->whereNull('read_at')
+                ->where('created_at', '<', $unreadCutoff);
+            $unreadToDelete = $unreadQuery->count();
+            $this->line("  Unread notifications older than {$keepUnreadDays} days to delete: {$unreadToDelete}");
         }
 
-        // Get count of notifications to delete
-        $toDeleteCount = $query->count();
+        $totalToDelete = $readToDelete + $unreadToDelete;
 
-        if ($toDeleteCount === 0) {
+        if ($totalToDelete === 0) {
             $this->info('✓ No notifications to clean up');
             return 0;
         }
 
-        $this->warn("Found {$toDeleteCount} notifications to delete");
+        $this->warn("Total to delete: {$totalToDelete}");
 
         if (!$dryRun) {
-            if (!$this->confirm('Do you want to proceed with deletion?', true)) {
-                $this->info('Cleanup cancelled');
-                return 0;
-            }
+            $deleted = $readQuery->delete();
 
-            $this->info('Deleting notifications...');
-            $deleted = $query->delete();
+            if ($keepUnreadDays > 0 && $unreadToDelete > 0) {
+                $unreadCutoff = now()->subDays($keepUnreadDays);
+                $unreadDeleted = DB::table('notifications')
+                    ->whereNull('read_at')
+                    ->where('created_at', '<', $unreadCutoff)
+                    ->delete();
+            }
 
             $totalAfter = DB::table('notifications')->count();
 
             $this->newLine();
-            $this->info("✓ Deleted {$deleted} notifications");
+            $this->info("✓ Deleted " . ($deleted + $unreadDeleted) . " notifications");
             $this->info("Total notifications after cleanup: {$totalAfter}");
-            $this->info("Space saved: " . ($totalBefore - $totalAfter) . " records");
         } else {
-            $this->info("Would delete {$toDeleteCount} notifications");
+            $this->info("Would delete {$totalToDelete} notifications");
         }
 
         $this->newLine();

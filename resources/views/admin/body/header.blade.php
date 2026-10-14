@@ -33,15 +33,9 @@
                     <span class="ri-search-line"></span>
                 </div>
             </form>
-
-
         </div>
 
-        <div class="d-flex">
-
-
-
-
+        <div class="d-flex align-items-center">
 
             <!-- Notifications -->
             <div class="dropdown d-inline-block">
@@ -92,30 +86,76 @@
                 </div>
             </div>
 
-            <div class="dropdown d-none d-lg-inline-block ms-1">
+            <!-- Fullscreen toggle -->
+            <div class="d-none d-lg-inline-block ms-1">
                 <button type="button" class="btn header-item noti-icon waves-effect" data-toggle="fullscreen">
                     <i class="ri-fullscreen-line"></i>
                 </button>
             </div>
 
             @php
-                $id = Auth::user()->id;
-            $adminData = App\Models\User::find($id);
+                $id        = Auth::user()->id;
+                $adminData = App\Models\User::find($id);
             @endphp
 
+            {{-- Branch context switcher — SuperAdmin only, as its own separate dropdown --}}
+            @if($adminData->isSuperAdmin())
+            @php
+                $activeBranchId = session('active_branch_id');
+                $allBranches    = \App\Models\Branch::active()->orderBy('name')->get();
+                $activeBranch   = $activeBranchId ? $allBranches->firstWhere('id', $activeBranchId) : null;
+            @endphp
+            <div class="dropdown d-none d-xl-inline-block ms-1">
+                <button type="button"
+                    class="btn header-item waves-effect d-flex align-items-center gap-1"
+                    data-bs-toggle="dropdown" aria-expanded="false"
+                    title="Switch branch view"
+                    style="padding: 0 10px; height: 100%;">
+                    <span class="badge {{ $activeBranch ? 'bg-primary' : 'bg-warning text-dark' }}" style="font-size:10px; padding:4px 7px;">
+                        {{ $activeBranch ? $activeBranch->code : 'ALL' }}
+                    </span>
+                    <i class="mdi mdi-chevron-down" style="font-size:14px;"></i>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end shadow-sm" style="min-width:210px;">
+                    <h6 class="dropdown-header" style="font-size:11px; letter-spacing:.05em;">VIEWING BRANCH</h6>
+                    <form method="POST" action="{{ route('branch.context.set') }}">
+                        @csrf
+                        <input type="hidden" name="branch_id" value="">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 {{ !$activeBranch ? 'fw-semibold' : '' }}">
+                            <span class="badge bg-warning text-dark" style="min-width:42px; font-size:10px;">ALL</span>
+                            All Branches
+                        </button>
+                    </form>
+                    <div class="dropdown-divider my-1"></div>
+                    @foreach($allBranches as $branch)
+                    <form method="POST" action="{{ route('branch.context.set') }}">
+                        @csrf
+                        <input type="hidden" name="branch_id" value="{{ $branch->id }}">
+                        <button type="submit" class="dropdown-item d-flex align-items-center gap-2 {{ $activeBranchId == $branch->id ? 'fw-semibold' : '' }}">
+                            <span class="badge bg-primary" style="min-width:42px; font-size:10px;">{{ $branch->code }}</span>
+                            {{ $branch->name }}
+                        </button>
+                    </form>
+                    @endforeach
+                </div>
+            </div>
+            @endif
 
-
-
+            <!-- User dropdown -->
             <div class="dropdown d-inline-block user-dropdown">
                 <button type="button" class="btn header-item waves-effect" id="page-header-user-dropdown"
                     data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
                     <img class="rounded-circle header-profile-user"
                         src="{{ (!empty($adminData->profile_image))? url('upload/admin_images/'.$adminData->profile_image):url('upload/no_image.jpg') }}" alt="Header Avatar">
                     <span class="d-none d-xl-inline-block ms-1">{{ $adminData->name }}</span>
+                    @if($adminData->branch)
+                        <span class="badge bg-primary ms-1 d-none d-xl-inline-block" style="font-size:10px;">
+                            {{ $adminData->branch->code }}
+                        </span>
+                    @endif
                     <i class="mdi mdi-chevron-down d-none d-xl-inline-block"></i>
                 </button>
                 <div class="dropdown-menu dropdown-menu-end">
-                    <!-- item-->
                     <a class="dropdown-item" href="{{ route('admin.profile') }}"><i class="ri-user-line align-middle me-1"></i> Profile</a>
                     <a class="dropdown-item" href="{{ route('change.password') }}"><i class="ri-wallet-2-line align-middle me-1"></i> Change Password</a>
                     <div class="dropdown-divider"></div>
@@ -123,8 +163,6 @@
                             class="ri-shut-down-line align-middle me-1 text-danger"></i> Logout</a>
                 </div>
             </div>
-
-
 
         </div>
     </div>

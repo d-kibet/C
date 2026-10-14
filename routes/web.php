@@ -49,6 +49,7 @@ Route::controller(AdminController::class)->middleware(['auth'])->group(function 
     Route::post('/store/profile', 'StoreProfile')->name('store.profile');
     Route::get('/change/password', 'ChangePassword')->name('change.password');
     Route::post('/update/password', 'UpdatePassword')->name('update.password');
+    Route::post('/branch-context', 'setBranchContext')->name('branch.context.set');
 });
 
 

@@ -19,6 +19,28 @@
         </div>
         <!-- end page title -->
 
+        {{-- Branch context banner for SuperAdmin --}}
+        @if(Auth::user()->isSuperAdmin())
+        @php $activeBranchId = session('active_branch_id'); @endphp
+        <div class="row mb-2">
+            <div class="col-12">
+                <div class="alert alert-{{ $activeBranchId ? 'primary' : 'warning' }} alert-dismissible py-2 mb-0 d-flex align-items-center gap-2" role="alert" style="font-size:13px;">
+                    <i class="ri-eye-line me-1"></i>
+                    @if($activeBranchId)
+                        <strong>Branch view active.</strong> You are viewing data for <strong>{{ session()->get('active_branch_name', 'selected branch') }}</strong>.
+                        <form method="POST" action="{{ route('branch.context.set') }}" class="d-inline ms-2">
+                            @csrf<input type="hidden" name="branch_id" value="">
+                            <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">Switch to All Branches</button>
+                        </form>
+                    @else
+                        <strong>Viewing all branches combined.</strong> Use the branch selector <kbd>&#9660;</kbd> in the header to filter by a specific branch.
+                    @endif
+                    <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close" style="font-size:11px;"></button>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Summary Cards -->
         <div class="row">
             <div class="col-xl-3 col-md-6">
@@ -96,6 +118,68 @@
             @endif
         </div><!-- end row -->
 
+        {{-- Branch breakdown table: only for SuperAdmin in "All Branches" mode --}}
+        @if(Auth::user()->isSuperAdmin() && !session('active_branch_id') && $branchBreakdown && $branchBreakdown->count() > 0)
+        <div class="row">
+            <div class="col-12">
+                <div class="card border-warning" style="border-width:2px!important;">
+                    <div class="card-body py-3">
+                        <h5 class="card-title mb-3">
+                            <i class="ri-building-line me-1 text-warning"></i>
+                            Today's Breakdown by Branch
+                        </h5>
+                        <div class="table-responsive">
+                            <table class="table table-centered table-hover align-middle mb-0" style="font-size:14px;">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Branch</th>
+                                        <th>Location</th>
+                                        <th class="text-center">Carpets Today</th>
+                                        <th class="text-center">Laundry Today</th>
+                                        <th class="text-end">Revenue Today (KES)</th>
+                                        <th></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach($branchBreakdown as $row)
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary me-1">{{ $row['branch']->code }}</span>
+                                            <strong>{{ $row['branch']->name }}</strong>
+                                        </td>
+                                        <td class="text-muted">{{ $row['branch']->location }}</td>
+                                        <td class="text-center">{{ $row['carpets'] }}</td>
+                                        <td class="text-center">{{ $row['laundry'] }}</td>
+                                        <td class="text-end">{{ number_format($row['revenue'], 2) }}</td>
+                                        <td>
+                                            <form method="POST" action="{{ route('branch.context.set') }}">
+                                                @csrf
+                                                <input type="hidden" name="branch_id" value="{{ $row['branch']->id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary py-0 px-2">
+                                                    View Only
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="table-secondary fw-bold">
+                                    <tr>
+                                        <td colspan="2">Total (All Branches)</td>
+                                        <td class="text-center">{{ $todayCarpetCount }}</td>
+                                        <td class="text-center">{{ $todayLaundryCount }}</td>
+                                        <td class="text-end">{{ number_format($todayTotalRevenue, 2) }}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Weekly Charts -->
         <div class="row">
             <div class="{{ Auth::user()->can('admin.all') ? 'col-xl-6' : 'col-xl-12' }}">
@@ -136,6 +220,9 @@
                                         @if(Auth::user()->can('admin.all'))
                                         <th>Total (KES)</th>
                                         @endif
+                                        @if(Auth::user()->isSuperAdmin() && !session('active_branch_id'))
+                                        <th>Branch</th>
+                                        @endif
                                         <th>Payment</th>
                                         <th>Date</th>
                                         <th></th>
@@ -156,6 +243,16 @@
                                             <td>{{ $order->items_count ?? $order->items->count() }}</td>
                                             @if(Auth::user()->can('admin.all'))
                                             <td>{{ number_format($order->total, 2) }}</td>
+                                            @endif
+                                            @if(Auth::user()->isSuperAdmin() && !session('active_branch_id'))
+                                            <td>
+                                                @php $branchObj = $branchesById[$order->branch_id] ?? null; @endphp
+                                                @if($branchObj)
+                                                    <span class="badge bg-primary">{{ $branchObj->code }}</span>
+                                                @else
+                                                    <span class="text-muted">—</span>
+                                                @endif
+                                            </td>
                                             @endif
                                             <td>
                                                 @if($order->payment_status === 'Paid')

@@ -15,6 +15,28 @@ use Illuminate\Support\Facades\Storage;
 
 class AdminController extends Controller
 {
+    public function setBranchContext(Request $request): RedirectResponse
+    {
+        /** @var \App\Models\User $user */
+        $user = auth()->user();
+
+        if (!$user->isSuperAdmin()) {
+            abort(403);
+        }
+
+        $branchId = $request->input('branch_id');
+
+        if ($branchId) {
+            $request->validate(['branch_id' => 'required|exists:branches,id']);
+            $branch = \App\Models\Branch::findOrFail((int) $branchId);
+            session(['active_branch_id' => $branch->id, 'active_branch_name' => $branch->name]);
+        } else {
+            session()->forget(['active_branch_id', 'active_branch_name']);
+        }
+
+        return redirect()->back();
+    }
+
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('web')->logout();
@@ -162,9 +184,9 @@ class AdminController extends Controller
     }// End Method
 
     public function AddAdmin(){
-
-        $roles = Role::all();
-        return view('backend.admin.add_admin',compact('roles'));
+        $roles    = Role::all();
+        $branches = \App\Models\Branch::active()->orderBy('name')->get();
+        return view('backend.admin.add_admin', compact('roles', 'branches'));
     }// End Method
 
     // public function StoreAdmin(Request $request){
@@ -189,12 +211,13 @@ class AdminController extends Controller
 {
     // Validate the request
     $validated = $request->validate([
-        'name'     => 'required|string|max:255',
-        'email'    => 'required|string|email|max:255|unique:users,email',
-        'username' => 'required|string|max:255|unique:users,username',
-        'phone'    => 'required|string|max:13',
-        'password' => 'required|string|min:10|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/',
-        'roles'    => 'nullable',
+        'name'      => 'required|string|max:255',
+        'email'     => 'required|string|email|max:255|unique:users,email',
+        'username'  => 'required|string|max:255|unique:users,username',
+        'phone'     => 'required|string|max:13',
+        'password'  => 'required|string|min:10|regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/',
+        'roles'     => 'nullable',
+        'branch_id' => 'nullable|exists:branches,id',
     ], [
         'password.regex' => 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
         'password.min' => 'Password must be at least 10 characters.',
@@ -202,11 +225,12 @@ class AdminController extends Controller
 
     // Create the user
     $user = new User();
-    $user->name     = $validated['name'];
-    $user->email    = $validated['email'];
-    $user->username = $validated['username'];
-    $user->phone    = $validated['phone'];
-    $user->password = Hash::make($validated['password']);
+    $user->name      = $validated['name'];
+    $user->email     = $validated['email'];
+    $user->username  = $validated['username'];
+    $user->phone     = $validated['phone'];
+    $user->password  = Hash::make($validated['password']);
+    $user->branch_id = ($validated['branch_id'] ?? '') ?: null; // empty string or missing → null = SuperAdmin
     $user->save();
 
     // Assign role if provided
@@ -227,31 +251,32 @@ class AdminController extends Controller
 }
 
 public function EditAdmin($id){
-
-    $roles = Role::all();
+    $roles     = Role::all();
     $adminuser = User::findOrFail($id);
-    return view('backend.admin.edit_admin',compact('roles','adminuser'));
-
+    $branches  = \App\Models\Branch::active()->orderBy('name')->get();
+    return view('backend.admin.edit_admin', compact('roles', 'adminuser', 'branches'));
 }// End Method
 
 public function UpdateAdmin(Request $request)
 {
     // Validate the incoming data
     $validated = $request->validate([
-        'id'    => 'required|exists:users,id',
-        'name'  => 'required|string|max:255',
-        'email' => 'required|string|email|max:255|unique:users,email,' . $request->id,
-        'phone' => 'required|string|max:13',
-        'roles' => 'nullable',  // Adjust this based on whether you expect a single value or an array.
+        'id'        => 'required|exists:users,id',
+        'name'      => 'required|string|max:255',
+        'email'     => 'required|string|email|max:255|unique:users,email,' . $request->id,
+        'phone'     => 'required|string|max:13',
+        'roles'     => 'nullable',
+        'branch_id' => 'nullable|exists:branches,id',
     ]);
 
     // Retrieve the admin user by ID
     $user = User::findOrFail($validated['id']);
 
     // Update user details
-    $user->name  = $validated['name'];
-    $user->email = $validated['email'];
-    $user->phone = $validated['phone'];
+    $user->name      = $validated['name'];
+    $user->email     = $validated['email'];
+    $user->phone     = $validated['phone'];
+    $user->branch_id = ($validated['branch_id'] ?? '') ?: null;
     $user->save();
 
     // Process roles if provided.

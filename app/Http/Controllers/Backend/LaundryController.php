@@ -137,6 +137,7 @@ class LaundryController extends Controller
         $validateData = $request->validated();
 
        $laundry = Laundry::create(array_merge($validateData, [
+           'branch_id'        => auth()->user()->branch_id,
            'follow_up_due_at' => Carbon::parse($validateData['date_received'])
                                        ->addDays(config('followup.stages')[1]),
        ]));

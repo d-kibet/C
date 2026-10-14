@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -31,6 +32,7 @@ class User extends Authenticatable // implements MustVerifyEmail
         'phone',
         'password',
         'status',
+        'branch_id',
     ];
 
     /**
@@ -77,6 +79,22 @@ class User extends Authenticatable // implements MustVerifyEmail
             return $hasPermission;
         }
     }// End Method
+
+    /**
+     * The branch this user belongs to. Null = SuperAdmin (no branch restriction).
+     */
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Returns true if this user can see data from all branches.
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->branch_id === null;
+    }
 
     /**
      * Get the user's notification preferences

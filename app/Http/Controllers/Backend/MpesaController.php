@@ -103,6 +103,7 @@ return view('backend.mpesa.all_mpesa', compact(
 
         // Insert the new record with the computed total and difference
         Mpesa::insert([
+            'branch_id'  => auth()->user()->branch_id,
             'date'       => $request->date,
             'cash'       => $cash,
             'float'      => $float,

@@ -271,12 +271,12 @@ class NotificationController extends Controller
 
     private function removeRelatedNotifications($serviceType, $serviceId)
     {
-        // Remove all overdue notifications for this specific service
-        $user = $this->getAuthenticatedUser();
-        $user->notifications()
+        // Remove overdue notifications for ALL users — when an item is delivered,
+        // no admin should still see it as overdue.
+        \DB::table('notifications')
             ->where('type', 'App\\Notifications\\OverdueDeliveryNotification')
-            ->whereJsonContains('data->service_type', $serviceType)
-            ->whereJsonContains('data->service_id', $serviceId)
+            ->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(data, '$.service_type')) = ?", [$serviceType])
+            ->whereRaw("CAST(JSON_EXTRACT(data, '$.service_id') AS UNSIGNED) = ?", [(int) $serviceId])
             ->delete();
     }
 }

@@ -78,18 +78,30 @@
 
 <div class="col-md-6">
 <div class="form-group mb-3">
-<label for="roles" class="form-label">Asign Roles </label>
+<label for="roles" class="form-label">Assign Roles</label>
 <select name="roles" class="form-select" id="example-select">
-    <option selected disabled >Select Roles </option>
+    <option selected disabled>Select Roles</option>
     @foreach($roles as $role)
-<option value="{{ $role->id }}" {{ $adminuser->hasRole($role->name) ? 'selected' : '' }} >{{ $role->name }}</option>
-     @endforeach
+        <option value="{{ $role->id }}" {{ $adminuser->hasRole($role->name) ? 'selected' : '' }}>{{ $role->name }}</option>
+    @endforeach
 </select>
-
 </div>
 </div>
 
-
+<div class="col-md-6">
+<div class="form-group mb-3">
+<label class="form-label">Branch</label>
+<select name="branch_id" class="form-select">
+    <option value="" {{ is_null($adminuser->branch_id) ? 'selected' : '' }}>— None (SuperAdmin: access all branches) —</option>
+    @foreach($branches as $branch)
+        <option value="{{ $branch->id }}" {{ $adminuser->branch_id == $branch->id ? 'selected' : '' }}>
+            {{ $branch->name }} ({{ $branch->location }})
+        </option>
+    @endforeach
+</select>
+<small class="text-muted">Leave blank only for the owner / superadmin account.</small>
+</div>
+</div>
 
 
 </div> <!-- end row -->

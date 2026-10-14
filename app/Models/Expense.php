@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\BranchScope;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,13 @@ class Expense extends Model
 {
     use HasFactory, Auditable;
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new BranchScope());
+    }
+
     protected $fillable = [
+        'branch_id',
         'category_id',
         'subcategory',
         'vendor_name',
@@ -31,6 +38,11 @@ class Expense extends Model
         'amount' => 'decimal:2',
         'expense_date' => 'date',
     ];
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     public function category(): BelongsTo
     {

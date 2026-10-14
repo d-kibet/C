@@ -20,7 +20,10 @@ class NotificationManager
      * 2. Updating it instead of creating new one
      * 3. Tracking update count and timestamps
      */
-    public function sendOrUpdateOverdueNotification(User $user, $service, int $daysOverdue): void
+    /**
+     * Returns true if a new notification was created, false if an existing one was updated.
+     */
+    public function sendOrUpdateOverdueNotification(User $user, $service, int $daysOverdue): bool
     {
         $serviceType = class_basename($service);
         $serviceId = $service->id;
@@ -34,7 +37,7 @@ class NotificationManager
                 'service' => $serviceType,
                 'service_id' => $serviceId
             ]);
-            return;
+            return false;
         }
 
         // Check quiet hours
@@ -44,7 +47,7 @@ class NotificationManager
                 'service' => $serviceType,
                 'service_id' => $serviceId
             ]);
-            return;
+            return false;
         }
 
         // SMART CONSOLIDATION: Find existing unread notification for this item
@@ -59,7 +62,6 @@ class NotificationManager
             ->first();
 
         if ($existingNotification) {
-            // UPDATE existing notification instead of creating new one
             $this->updateExistingNotification($existingNotification, $daysOverdue);
 
             Log::info('Overdue notification updated (consolidated)', [
@@ -69,17 +71,20 @@ class NotificationManager
                 'days_overdue' => $daysOverdue,
                 'notification_id' => $existingNotification->id
             ]);
-        } else {
-            // No existing notification - create new one
-            $user->notify(new OverdueDeliveryNotification($service, $daysOverdue));
 
-            Log::info('New overdue notification created', [
-                'user_id' => $user->id,
-                'service' => $serviceType,
-                'service_id' => $serviceId,
-                'days_overdue' => $daysOverdue
-            ]);
+            return false;
         }
+
+        $user->notify(new OverdueDeliveryNotification($service, $daysOverdue));
+
+        Log::info('New overdue notification created', [
+            'user_id' => $user->id,
+            'service' => $serviceType,
+            'service_id' => $serviceId,
+            'days_overdue' => $daysOverdue
+        ]);
+
+        return true;
     }
 
     /**

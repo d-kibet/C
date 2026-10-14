@@ -144,30 +144,45 @@ class ReportController extends Controller
 
     public function performance()
     {
-        return view('reports.performance');
+        $branches = \App\Models\Branch::active()->orderBy('name')->get();
+        return view('reports.performance', compact('branches'));
     }
 
     public function performanceData(Request $request)
     {
         $serviceType = $request->input('service_type', 'carpet');
-        $fromDate = Carbon::parse($request->input('from_date', Carbon::now()->startOfMonth()));
-        $toDate = Carbon::parse($request->input('to_date', Carbon::now()->endOfMonth()));
+        $fromDate    = Carbon::parse($request->input('from_date', Carbon::now()->startOfMonth()));
+        $toDate      = Carbon::parse($request->input('to_date', Carbon::now()->endOfMonth()));
+
+        // SuperAdmins can pass a branch_id to scope the report to a specific branch.
+        // Regular staff always see only their own branch (enforced by BranchScope).
+        $branchId = null;
+        if (auth()->user()->isSuperAdmin() && $request->filled('branch_id')) {
+            $branchId = (int) $request->input('branch_id');
+        }
 
         if ($serviceType === 'carpet') {
-            return $this->getCarpetPerformanceData($fromDate, $toDate);
+            return $this->getCarpetPerformanceData($fromDate, $toDate, $branchId);
         } elseif ($serviceType === 'laundry') {
-            return $this->getLaundryPerformanceData($fromDate, $toDate);
+            return $this->getLaundryPerformanceData($fromDate, $toDate, $branchId);
         } else {
-            return $this->getExpensePerformanceData($fromDate, $toDate);
+            return $this->getExpensePerformanceData($fromDate, $toDate, $branchId);
         }
     }
 
-    private function getCarpetPerformanceData($fromDate, $toDate)
+    private function getCarpetPerformanceData($fromDate, $toDate, ?int $branchId = null)
     {
-        $orders = Order::with('items')->where('type', 'carpet')
+        $query = Order::with('items')->where('type', 'carpet')
             ->whereBetween('date_received', [$fromDate, $toDate])
-            ->orderBy('date_received', 'desc')
-            ->get();
+            ->orderBy('date_received', 'desc');
+
+        // SuperAdmin branch filter: withoutGlobalScope lets us manually scope
+        if ($branchId !== null) {
+            $query->withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                  ->where('branch_id', $branchId);
+        }
+
+        $orders = $query->get();
 
         $totalRevenue  = $orders->sum('total');
         $paidOrders    = $orders->where('payment_status', 'Paid');
@@ -258,12 +273,18 @@ class ReportController extends Controller
         ]);
     }
 
-    private function getLaundryPerformanceData($fromDate, $toDate)
+    private function getLaundryPerformanceData($fromDate, $toDate, ?int $branchId = null)
     {
-        $orders = Order::with('items')->where('type', 'laundry')
+        $query = Order::with('items')->where('type', 'laundry')
             ->whereBetween('date_received', [$fromDate, $toDate])
-            ->orderBy('date_received', 'desc')
-            ->get();
+            ->orderBy('date_received', 'desc');
+
+        if ($branchId !== null) {
+            $query->withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                  ->where('branch_id', $branchId);
+        }
+
+        $orders = $query->get();
 
         $totalRevenue  = $orders->sum('total');
         $paidOrders    = $orders->where('payment_status', 'Paid');
@@ -607,12 +628,19 @@ class ReportController extends Controller
             })->values();
     }
 
-    private function getExpensePerformanceData($fromDate, $toDate)
+    private function getExpensePerformanceData($fromDate, $toDate, ?int $branchId = null)
     {
-        // Get expense data for the period
-        $expenses = Expense::with(['category', 'creator'])
+        $expenseQuery = Expense::with(['category', 'creator'])
             ->whereBetween('expense_date', [$fromDate, $toDate])
-            ->approved()
+            ->approved();
+
+        if ($branchId !== null) {
+            $expenseQuery->withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                         ->where('branch_id', $branchId);
+        }
+
+        // Get expense data for the period
+        $expenses = $expenseQuery
             ->orderBy('expense_date', 'desc')
             ->get();
 

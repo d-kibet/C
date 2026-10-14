@@ -2,16 +2,24 @@
 
 namespace App\Models;
 
+use App\Models\Scopes\BranchScope;
 use App\Traits\Auditable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Order extends Model
 {
     use HasFactory, Auditable, SoftDeletes;
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new BranchScope());
+    }
+
     protected $fillable = [
+        'branch_id',
         'order_number',
         'type',
         'name',
@@ -41,6 +49,11 @@ class Order extends Model
         'subtotal'        => 'decimal:2',
         'total'           => 'decimal:2',
     ];
+
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(Branch::class);
+    }
 
     public function items()
     {
@@ -76,8 +89,11 @@ class Order extends Model
 
     public static function generateOrderNumber(): string
     {
-        $today    = now()->format('Ymd');
-        $lastOrder = static::whereDate('created_at', today())->orderBy('id', 'desc')->first();
+        $today     = now()->format('Ymd');
+        $lastOrder = static::withoutGlobalScope(BranchScope::class)
+            ->whereDate('created_at', today())
+            ->orderBy('id', 'desc')
+            ->first();
         $sequence  = $lastOrder ? ((int) substr($lastOrder->order_number, -3)) + 1 : 1;
         return 'ORD-' . $today . '-' . str_pad($sequence, 3, '0', STR_PAD_LEFT);
     }

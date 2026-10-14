@@ -92,7 +92,7 @@ class NotificationPreference extends Model
     {
         $field = $channel . '_enabled';
 
-        return property_exists($this, $field) ? $this->$field : true;
+        return in_array($field, $this->fillable) ? (bool) $this->$field : true;
     }
 
     /**

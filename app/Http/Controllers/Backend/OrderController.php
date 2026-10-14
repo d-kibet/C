@@ -192,6 +192,7 @@ class OrderController extends Controller
     {
         DB::transaction(function () use ($request) {
             $order = Order::create([
+                'branch_id'      => auth()->user()->branch_id,
                 'order_number'   => Order::generateOrderNumber(),
                 'type'           => $request->type,
                 'name'           => $request->name,

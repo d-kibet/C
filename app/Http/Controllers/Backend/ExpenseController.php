@@ -106,9 +106,10 @@ class ExpenseController extends Controller
         unset($validated['receipt_image']);
 
         $expense = Expense::create(array_merge($validated, [
-            'receipt_image' => $receiptPath,
+            'branch_id'       => auth()->user()->branch_id,
+            'receipt_image'   => $receiptPath,
             'approval_status' => $approvalStatus,
-            'created_by' => Auth::id(),
+            'created_by'      => Auth::id(),
         ]));
 
         $message = $approvalStatus === 'Pending' 
@@ -155,8 +156,9 @@ class ExpenseController extends Controller
         unset($validated['receipt_image']);
 
         $expense = Expense::create(array_merge($validated, [
+            'branch_id'       => auth()->user()->branch_id,
             'approval_status' => $approvalStatus,
-            'created_by' => Auth::id(),
+            'created_by'      => Auth::id(),
         ]));
 
         // Handle receipt upload - simple and reliable approach
@@ -317,11 +319,12 @@ class ExpenseController extends Controller
         ]);
 
         $expense = Expense::create(array_merge($validated, [
-            'vendor_name' => $validated['vendor_name'] ?? 'Quick Entry',
-            'expense_date' => today(),
+            'branch_id'      => auth()->user()->branch_id,
+            'vendor_name'    => $validated['vendor_name'] ?? 'Quick Entry',
+            'expense_date'   => today(),
             'payment_method' => 'Cash',
-            'approval_status' => 'Approved',
-            'created_by' => Auth::id(),
+            'approval_status'=> 'Approved',
+            'created_by'     => Auth::id(),
         ]));
 
         return response()->json([

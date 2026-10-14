@@ -134,6 +134,8 @@ class CarpetController extends Controller
     {
         $today     = Carbon::today()->toDateString();
         $yesterday = Carbon::yesterday()->toDateString();
+        // For raw DB queries: regular staff use their branch, SuperAdmin uses session context (null = all)
+        $activeBranchId = auth()->user()->branch_id ?? session('active_branch_id');
 
         // Carpets processed today: individual items from new orders + individual legacy carpet records
         $todayCarpetCount = DB::table('order_items')
@@ -141,6 +143,8 @@ class CarpetController extends Controller
                                 ->where('orders.type', 'carpet')
                                 ->whereDate('orders.date_received', $today)
                                 ->whereNull('orders.deleted_at')
+                                ->whereNull('order_items.deleted_at')
+                                ->when($activeBranchId, fn($q) => $q->where('orders.branch_id', $activeBranchId))
                                 ->count()
                             + Carpet::whereDate('date_received', $today)->count();
 
@@ -150,6 +154,8 @@ class CarpetController extends Controller
                                 ->where('orders.type', 'laundry')
                                 ->whereDate('orders.date_received', $today)
                                 ->whereNull('orders.deleted_at')
+                                ->whereNull('order_items.deleted_at')
+                                ->when($activeBranchId, fn($q) => $q->where('orders.branch_id', $activeBranchId))
                                 ->count()
                              + Laundry::whereDate('date_received', $today)->count();
 
@@ -171,7 +177,7 @@ class CarpetController extends Controller
                            + (float) Laundry::whereDate('date_received', $today)->sum(DB::raw('price - COALESCE(discount, 0)'));
 
         // Recent orders from new system (today + yesterday)
-        $recentOrders = Order::withCount('items')
+        $recentOrders = Order::withCount('items')->with('branch')
                             ->where(function ($q) use ($today, $yesterday) {
                                 $q->whereDate('date_received', $today)
                                   ->orWhereDate('date_received', $yesterday);
@@ -223,6 +229,8 @@ class CarpetController extends Controller
                                    ->where('orders.type', 'carpet')
                                    ->whereDate('orders.date_received', $dateStr)
                                    ->whereNull('orders.deleted_at')
+                                   ->whereNull('order_items.deleted_at')
+                                   ->when($activeBranchId, fn($q) => $q->where('orders.branch_id', $activeBranchId))
                                    ->count()
                                + Carpet::whereDate('date_received', $dateStr)->count();
 
@@ -231,6 +239,8 @@ class CarpetController extends Controller
                                    ->where('orders.type', 'laundry')
                                    ->whereDate('orders.date_received', $dateStr)
                                    ->whereNull('orders.deleted_at')
+                                   ->whereNull('order_items.deleted_at')
+                                   ->when($activeBranchId, fn($q) => $q->where('orders.branch_id', $activeBranchId))
                                    ->count()
                                + Laundry::whereDate('date_received', $dateStr)->count();
 
@@ -239,10 +249,62 @@ class CarpetController extends Controller
                              + (float) Laundry::whereDate('date_received', $dateStr)->sum(DB::raw('price - COALESCE(discount, 0)'));
         }
 
+        // Per-branch breakdown — shown only when SuperAdmin is in "All Branches" mode
+        $branchBreakdown = null;
+        if (auth()->user()->isSuperAdmin() && !session('active_branch_id')) {
+            $branches = \App\Models\Branch::active()->orderBy('name')->get();
+            $branchBreakdown = $branches->map(function ($branch) use ($today) {
+                $carpets = DB::table('order_items')
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                    ->where('orders.type', 'carpet')
+                    ->whereDate('orders.date_received', $today)
+                    ->whereNull('orders.deleted_at')
+                    ->whereNull('order_items.deleted_at')
+                    ->where('orders.branch_id', $branch->id)
+                    ->count()
+                    + Carpet::withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                        ->where('branch_id', $branch->id)
+                        ->whereDate('date_received', $today)
+                        ->count();
+
+                $laundry = DB::table('order_items')
+                    ->join('orders', 'order_items.order_id', '=', 'orders.id')
+                    ->where('orders.type', 'laundry')
+                    ->whereDate('orders.date_received', $today)
+                    ->whereNull('orders.deleted_at')
+                    ->whereNull('order_items.deleted_at')
+                    ->where('orders.branch_id', $branch->id)
+                    ->count()
+                    + Laundry::withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                        ->where('branch_id', $branch->id)
+                        ->whereDate('date_received', $today)
+                        ->count();
+
+                $revenue = Order::withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                        ->where('branch_id', $branch->id)
+                        ->whereDate('date_received', $today)
+                        ->sum('total')
+                    + (float) Carpet::withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                        ->where('branch_id', $branch->id)
+                        ->whereDate('date_received', $today)
+                        ->sum(DB::raw('price - COALESCE(discount, 0)'))
+                    + (float) Laundry::withoutGlobalScope(\App\Models\Scopes\BranchScope::class)
+                        ->where('branch_id', $branch->id)
+                        ->whereDate('date_received', $today)
+                        ->sum(DB::raw('price - COALESCE(discount, 0)'));
+
+                return compact('branch', 'carpets', 'laundry', 'revenue');
+            });
+        }
+
+        // Branches keyed by id for quick lookup in the view (badge/code display)
+        $branchesById = \App\Models\Branch::all()->keyBy('id');
+
         return view('admin.index', compact(
             'todayCarpetCount', 'todayLaundryCount', 'todayClientCount',
             'todayTotalRevenue', 'recentOrders',
-            'weekLabels', 'weeklyCarpets', 'weeklyLaundry', 'weeklyRevenue'
+            'weekLabels', 'weeklyCarpets', 'weeklyLaundry', 'weeklyRevenue',
+            'branchBreakdown', 'branchesById'
         ));
     } // End Method
 
@@ -254,6 +316,7 @@ class CarpetController extends Controller
         $validateData = $request->validated();
 
         $carpet = Carpet::create(array_merge($validateData, [
+            'branch_id'        => auth()->user()->branch_id,
             'follow_up_due_at' => Carbon::parse($validateData['date_received'])
                                         ->addDays(config('followup.stages')[1]),
             'transaction_code' => $request->transaction_code,
@@ -766,6 +829,7 @@ public function downloadNewCarpetsByMonth(Request $request)
                 $order->date_received  = $first->date_received;
                 $order->payment_status = $payStatus;
                 $order->total          = $group->sum(fn($l) => (float)($l->total ?? ((float)($l->price ?? 0) - (float)($l->discount ?? 0))));
+                $order->branch_id      = $first->branch_id ?? null;
                 $order->items          = $group->map(function ($l) {
                     $item                   = new \stdClass();
                     $item->unique_id        = $l->unique_id;
@@ -807,6 +871,7 @@ public function downloadNewCarpetsByMonth(Request $request)
                 $order->payment_status = $payStatus;
                 $order->total          = $group->sum(fn($c) => (float)($c->price ?? 0) - (float)($c->discount ?? 0));
                 $order->aging_days     = Carbon::parse($first->date_received)->diffInDays(now());
+                $order->branch_id      = $first->branch_id ?? null;
                 $order->items          = $group->map(function ($c) {
                     $item             = new \stdClass();
                     $item->unique_id  = $c->uniqueid;

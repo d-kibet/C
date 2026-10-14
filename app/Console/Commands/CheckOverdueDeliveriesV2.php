@@ -156,12 +156,9 @@ class CheckOverdueDeliveriesV2 extends Command
                             $createdCount = 0;
 
                             foreach ($adminUsers as $admin) {
-                                // Use smart manager - it will update OR create
-                                $beforeCount = \DB::table('notifications')->count();
-                                $this->notificationManager->sendOrUpdateOverdueNotification($admin, $carpet, $daysOverdue);
-                                $afterCount = \DB::table('notifications')->count();
+                                $created = $this->notificationManager->sendOrUpdateOverdueNotification($admin, $carpet, $daysOverdue);
 
-                                if ($afterCount > $beforeCount) {
+                                if ($created) {
                                     $createdCount++;
                                     $stats['created']++;
                                 } else {
@@ -224,11 +221,9 @@ class CheckOverdueDeliveriesV2 extends Command
                             $createdCount = 0;
 
                             foreach ($adminUsers as $admin) {
-                                $beforeCount = \DB::table('notifications')->count();
-                                $this->notificationManager->sendOrUpdateOverdueNotification($admin, $laundry, $daysOverdue);
-                                $afterCount = \DB::table('notifications')->count();
+                                $created = $this->notificationManager->sendOrUpdateOverdueNotification($admin, $laundry, $daysOverdue);
 
-                                if ($afterCount > $beforeCount) {
+                                if ($created) {
                                     $createdCount++;
                                     $stats['created']++;
                                 } else {
