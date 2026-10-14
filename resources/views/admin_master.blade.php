@@ -752,11 +752,6 @@
     <!-- Copy Protection -->
     <script>
     (function() {
-        // Disable right-click context menu
-        document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-        });
-
         // Disable keyboard shortcuts for copy, select-all, view-source, dev tools
         document.addEventListener('keydown', function(e) {
             // Ctrl+C, Ctrl+A, Ctrl+U
